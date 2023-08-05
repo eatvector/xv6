@@ -4,6 +4,7 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 
+// grep parttrn 1.txt 2.txt 3.txt (find partten in file)
 char buf[1024];
 int match(char*, char*);
 

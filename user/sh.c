@@ -82,6 +82,7 @@ runcmd(struct cmd *cmd)
 
   case REDIR:
     rcmd = (struct redircmd*)cmd;
+    // make rcmd->fd point to rcmd->file with mode rcmd->mode
     close(rcmd->fd);
     if(open(rcmd->file, rcmd->mode) < 0){
       fprintf(2, "open %s failed\n", rcmd->file);
@@ -103,10 +104,12 @@ runcmd(struct cmd *cmd)
     if(pipe(p) < 0)
       panic("pipe");
     if(fork1() == 0){
+      // kid process 1 get write(pid 1)
       close(1);
       dup(p[1]);
       close(p[0]);
       close(p[1]);
+      // write to pid 1
       runcmd(pcmd->left);
     }
     if(fork1() == 0){
@@ -114,6 +117,7 @@ runcmd(struct cmd *cmd)
       dup(p[0]);
       close(p[0]);
       close(p[1]);
+      //get data from pid 0
       runcmd(pcmd->right);
     }
     close(p[0]);
@@ -165,6 +169,7 @@ main(void)
         fprintf(2, "cannot cd %s\n", buf+3);
       continue;
     }
+    // if we are child just runcmd
     if(fork1() == 0)
       runcmd(parsecmd(buf));
     wait(0);
