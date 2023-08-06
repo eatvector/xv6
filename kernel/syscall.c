@@ -1,13 +1,12 @@
 
 #include "types.h"
-#include "syscall.h"
-#include "defs.h"
-#include "memlayout.h"
 #include "param.h"
-#include "proc.h"
+#include "memlayout.h"
 #include "riscv.h"
 #include "spinlock.h"
-
+#include "proc.h"
+#include "syscall.h"
+#include "defs.h"
 
 // Fetch the uint64 at addr from the current process.
 int fetchaddr(uint64 addr, uint64 *ip) {
@@ -89,6 +88,7 @@ extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_trace(void);
+extern uint64 sys_sysinfo(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -100,7 +100,7 @@ static uint64 (*syscalls[])(void) = {
     [SYS_sleep] sys_sleep, [SYS_uptime] sys_uptime, [SYS_open] sys_open,
     [SYS_write] sys_write, [SYS_mknod] sys_mknod,   [SYS_unlink] sys_unlink,
     [SYS_link] sys_link,   [SYS_mkdir] sys_mkdir,   [SYS_close] sys_close,
-    [SYS_trace] sys_trace,
+    [SYS_trace] sys_trace, [SYS_sysinfo] sys_sysinfo,
 };
 
 #define MAX_SYSNAME 32
@@ -127,6 +127,7 @@ static char syscalls_name[][MAX_SYSNAME]={
 [SYS_mkdir]   "mkdir",
 [SYS_close]   "close",
 [SYS_trace]   "trace",
+[SYS_sysinfo] "sysinfo",
 };
 
 

@@ -27,12 +27,14 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  // pysical memory [end,PHYSTOP);
   freerange(end, (void*)PHYSTOP);
 }
 
 void
 freerange(void *pa_start, void *pa_end)
 {
+  // free memory by page
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
@@ -80,3 +82,18 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+// return the number of bytes of free memory
+uint64 kfreememory(){
+  struct  run*r;
+  uint64 pg_num=0;
+  acquire(&kmem.lock);
+  r=kmem.freelist;
+   while(r){
+      ++pg_num;
+      r=r->next;
+   }
+  release(&kmem.lock);
+  return pg_num*PGSIZE;
+}
+
