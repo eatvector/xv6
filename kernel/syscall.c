@@ -141,6 +141,11 @@ syscall(void)
   num = p->trapframe->a7;
 
   if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {
+    // syscall arguments
+    uint64 arg1=p->trapframe->a0;
+    uint64 arg2=p->trapframe->a1;
+    uint64 arg3=p->trapframe->a2;
+
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
     p->trapframe->a0 = syscalls[num]();
@@ -150,7 +155,7 @@ syscall(void)
       int pid=p->pid;
       // i am not sure here
       int return_val=(int)p->trapframe->a0;
-      printf("%d: syscall %s -> %d\n",pid,syscalls_name[num],return_val);
+      printf("%d: syscall %s (0x%x,0x%x,0x%x) -> %d\n",pid,syscalls_name[num],arg1,arg2,arg3,return_val);
     }
 
   } else {
