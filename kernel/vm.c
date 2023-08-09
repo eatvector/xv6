@@ -291,6 +291,7 @@ freewalk(pagetable_t pagetable)
 void
 uvmfree(pagetable_t pagetable, uint64 sz)
 {
+  //Ensure all leaves to be free.
   if(sz > 0)
     uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 1);
   freewalk(pagetable);
@@ -348,6 +349,7 @@ uvmclear(pagetable_t pagetable, uint64 va)
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.
 // Return 0 on success, -1 on error.
+
 int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
@@ -356,17 +358,19 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
+   
     if(pa0 == 0)
       return -1;
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
     memmove((void *)(pa0 + (dstva - va0)), src, n);
-
+    
     len -= n;
     src += n;
     dstva = va0 + PGSIZE;
   }
+ 
   return 0;
 }
 
@@ -436,4 +440,31 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+
+
+static void vmprint_help(pagetable_t pagetable,int depth){
+     // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if(pte&PTE_V){
+      for(int j=0;j<=depth;j++){
+        printf(" ..");
+      }
+      uint64 child = PTE2PA(pte);
+      printf("%d: pte 0x%p pa 0x%p\n",i,pte, child);
+    
+      if((pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      vmprint_help((pagetable_t)child,depth+1);
+      }
+    }
+  }
+}
+
+// Print pagetable 
+void vmprint( pagetable_t pagetable){
+
+   printf("page table 0x%p\n",pagetable);
+    vmprint_help(pagetable,0);
+  
 }

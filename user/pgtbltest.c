@@ -11,7 +11,9 @@ int
 main(int argc, char *argv[])
 {
   ugetpid_test();
+  
   pgaccess_test();
+ 
   printf("pgtbltest: all tests succeeded\n");
   exit(0);
 }
@@ -58,6 +60,7 @@ pgaccess_test()
   buf = malloc(32 * PGSIZE);
   if (pgaccess(buf, 32, &abits) < 0)
     err("pgaccess failed");
+  
   buf[PGSIZE * 1] += 1;
   buf[PGSIZE * 2] += 1;
   buf[PGSIZE * 30] += 1;

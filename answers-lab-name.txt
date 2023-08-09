@@ -1,0 +1,2 @@
+1 sys_uptime,user program only need to read from ticks.
+2 page0  text   page 1 data  page 2 is stack.the third to last page contain heap

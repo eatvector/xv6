@@ -69,14 +69,67 @@ sys_sleep(void)
   return 0;
 }
 
-
+int flag=0;
+//#define LAB_PGTBL
 #ifdef LAB_PGTBL
-int
-sys_pgaccess(void)
-{
-  // lab pgtbl: your code here.
-  return 0;
+#define MAX_PAGES_SCAN PGSIZE
+// Reports which pages have been accessed
+int 
+sys_pgaccess(void ){
+   flag=1;
+   uint64 ubase;
+   int pglen;
+   uint64 umask;
+   argaddr(0,&ubase);
+   argint(1,&pglen);
+   argaddr(2,&umask);
+
+   if(pglen>MAX_PAGES_SCAN){
+     //starting virtual address should be aligned
+     //pages to sacn is too much
+     //printf("ubase:0x%p len:%d  umask:0x%p\n",ubase,pglen,umask);
+     //panic("out of range");
+     return -1;
+   }
+
+   char *kmask=(char *)kalloc();
+   memset(kmask,0,PGSIZE);
+   uint64 va=PGROUNDDOWN(ubase);
+   //printf("start page:0x%p\n",va);
+   //printf("ubase:0x%p len:%d  umask:0x%p\n",ubase,pglen,umask);
+   //uint64 va_end=
+   pagetable_t pagetable=myproc()->pagetable;
+   
+   for(int i=0;i<pglen;i++){
+     
+     pte_t* pte=walk(pagetable,va,0);
+
+     if(pte==(pte_t*)0){
+       //return -1
+       //panic("pte is null");
+       return -1;
+     }
+     if((*pte)&PTE_A){
+       // add to mask
+        char *p=&kmask[i/8];
+        *p|=(1<<(i%8));
+       //clean PTE_A
+       (*pte)&=(~PTE_A);
+     }
+     va+=PGSIZE;
+   }
+   
+   int nbytes=(pglen/8)+((pglen%8)?1:0);
+  
+   if(copyout(pagetable,umask,kmask,nbytes)<0){
+     //panic("copy out");
+     return -1;
+   }
+   //vmprint(pagetable);
+   kfree(kmask);
+   return 0;
 }
+
 #endif
 
 uint64
@@ -100,3 +153,5 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
