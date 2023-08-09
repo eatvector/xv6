@@ -452,7 +452,7 @@ static void vmprint_help(pagetable_t pagetable,int depth){
         printf(" ..");
       }
       uint64 child = PTE2PA(pte);
-      printf("%d: pte 0x%p pa 0x%p\n",i,pte, child);
+      printf("%d: pte %p pa %p\n",i,pte, child);
     
       if((pte & (PTE_R|PTE_W|PTE_X)) == 0){
       vmprint_help((pagetable_t)child,depth+1);
@@ -464,7 +464,7 @@ static void vmprint_help(pagetable_t pagetable,int depth){
 // Print pagetable 
 void vmprint( pagetable_t pagetable){
 
-   printf("page table 0x%p\n",pagetable);
+   printf("page table %p\n",pagetable);
     vmprint_help(pagetable,0);
   
 }
