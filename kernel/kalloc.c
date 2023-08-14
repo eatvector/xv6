@@ -14,6 +14,20 @@ void freerange(void *pa_start, void *pa_end);
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
+
+// to trace each pusical page's references
+static int phypage_refs[PHYSTOP/PGSIZE];
+
+void  increase_ref(uint64 pa){
+    phypage_refs[pa/PGSIZE]++;
+}
+
+void decrease_ref(uint64 pa){
+    phypage_refs[pa/PGSIZE]--;
+}
+
+
+
 struct run {
   struct run *next;
 };
@@ -28,6 +42,7 @@ kinit()
 {
   initlock(&kmem.lock, "kmem");
   freerange(end, (void*)PHYSTOP);
+  memset(phypage_refs,0,sizeof(phypage_refs));
 }
 
 void
@@ -46,11 +61,16 @@ freerange(void *pa_start, void *pa_end)
 void
 kfree(void *pa)
 {
+
   struct run *r;
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
+  // if this page's reference is not 0 we can not free it
+  if(phypage_refs[(uint64)pa/PGSIZE]!=0){
+    return ;
+  }
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
 
@@ -78,5 +98,10 @@ kalloc(void)
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+
+   phypage_refs[(uint64)r/PGSIZE]++;
+  
   return (void*)r;
 }
+
+

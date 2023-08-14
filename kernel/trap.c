@@ -67,7 +67,36 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else {
+  }  else if(r_scause()==15){
+    // page fault
+    uint64 va=r_stval();
+    pte_t *pte;
+    if((pte = walk(p->pagetable, va, 0)) !=0&&(*pte)&PTE_COW&&(*pte)&PTE_PW){
+        uint64 pa=PTE2PA(*pte);
+        /*
+          mem = kalloc();
+          memset(mem, 0, PGSIZE);
+          mappages(pagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U);
+          memmove(mem, src, sz);
+        */
+        char *mem;
+        if((mem=kalloc())==0){
+          // no enough memory,kill the peocess
+           setkilled(p);
+        }
+        //safestrcpy
+
+
+
+    }else {
+        printf("process can not access adress:%p\n",va);
+        setkilled(p);
+    }
+
+
+
+  }
+  else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     setkilled(p);
