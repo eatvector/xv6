@@ -320,10 +320,9 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
    //set PTE_COW,if PTE_W is set,we should set PTE_PW and clear PTE_W
     flags = PTE_FLAGS(*pte);
-    flags|=PTE_COW;
     if(flags&PTE_W){
        flags&=(~PTE_W);
-       flags|=PTE_PW;
+       flags|=PTE_COW;
     }
 
     // map to the same physical page
