@@ -146,6 +146,12 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+
+  //initialize alarm information
+  p->alarm_info.handler=(void (*)())0;
+  p->alarm_info.interval=0;
+  p->alarm_info.ticks=0;
+  p->alarm_info.is_handler_return=1;
   return p;
 }
 
@@ -681,3 +687,26 @@ procdump(void)
     printf("\n");
   }
 }
+
+ uint64 sys_sigalarm(void){
+   int interval;
+   argint(0,&interval);
+   uint64 handler;
+   argaddr(1,&handler);
+   struct  proc*p= myproc();
+   p->alarm_info.interval=interval;
+   p->alarm_info.handler=(void (*) ())handler;
+   p->alarm_info.ticks=0;
+   return 0;
+ }
+
+ uint64 sys_sigreturn(void){
+    struct  proc *p=myproc();
+    uint64 *gpr=(uint64*)p->trapframe+5;
+    for(int i=0;i<31;i++){
+      *(gpr++)= p->alarm_info.saved_gprs[i];
+    }
+    p->trapframe->epc=p->alarm_info.saved_epc;
+    p->alarm_info.is_handler_return=1;
+    return p->trapframe->a0;
+ }

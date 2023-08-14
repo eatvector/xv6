@@ -67,6 +67,26 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+    // every tick, the hardware clock forces an interrupt
+     if(which_dev == 2){
+         if(!(p->alarm_info.interval==0&&p->alarm_info.handler==(void (*)())0)){
+           p->alarm_info.ticks++;
+           if(p->alarm_info.ticks>=p->alarm_info.interval){
+             if(p->alarm_info.is_handler_return){
+               p->alarm_info.is_handler_return=0;
+               p->alarm_info.saved_epc=p->trapframe->epc;
+
+               uint64 *gpr=(uint64*)p->trapframe+5;
+               for(int i=0;i<31;i++){
+                 p->alarm_info.saved_gprs[i]=*(gpr++);
+               }
+               p->trapframe->epc=(uint64)p->alarm_info.handler;
+               p->alarm_info.ticks=0;
+             }
+           }
+         }
+     }
+
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -76,9 +96,11 @@ usertrap(void)
   if(killed(p))
     exit(-1);
 
+ 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2){
     yield();
+  }
 
   usertrapret();
 }

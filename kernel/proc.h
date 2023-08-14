@@ -81,6 +81,20 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+
+//Alarm infomation
+struct alarm{
+   int interval;
+   void (*handler)();
+   //ticks have passed since the last call 
+   int ticks;
+   int is_handler_return;
+   uint64 saved_gprs[31];
+   uint64 saved_epc;
+};
+
+
+
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -94,6 +108,9 @@ struct proc {
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
+
+  //alarm information
+  struct alarm alarm_info;
 
   // these are private to the process, so p->lock need not be held.
   uint64 kstack;               // Virtual address of kernel stack
