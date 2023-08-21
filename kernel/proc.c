@@ -102,6 +102,9 @@ allocpid()
   return pid;
 }
 
+
+uint64 get_refs(uint64 pa);
+
 // Look in the process table for an UNUSED proc.
 // If found, initialize state required to run in the kernel,
 // and return with p->lock held.
@@ -155,8 +158,9 @@ found:
 static void
 freeproc(struct proc *p)
 {
-  if(p->trapframe)
+  if(p->trapframe){
     kfree((void*)p->trapframe);
+  }
   p->trapframe = 0;
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
@@ -210,6 +214,8 @@ proc_pagetable(struct proc *p)
 void
 proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
+  //pte_t *p=walk(pagetable,TRAPFRAME,0);
+  //printf("free proc with pagetable %p   traoframe pa%p\n",pagetable,PTE2PA(*p));
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
@@ -298,6 +304,8 @@ fork(void)
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
+
+  //printf("\nfork oldp name:%s trapframe %p newp name:%s trapframe %p\n",p->name,p->trapframe,np->name,np->trapframe);
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
@@ -681,3 +689,33 @@ procdump(void)
     printf("\n");
   }
 }
+
+/*void print_trapfram(){
+   static char *states[] = {
+  [UNUSED]    "unused",
+  [USED]      "used",
+  [SLEEPING]  "sleep ",
+  [RUNNABLE]  "runble",
+  [RUNNING]   "run   ",
+  [ZOMBIE]    "zombie"
+  };
+  struct proc *p;
+  char *state;
+
+  printf("\n");
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(p->state == UNUSED)
+      continue;
+    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+      state = states[p->state];
+    else
+      state = "???";
+    printf("state:%s name:%s   pgtable :%p trapframe :%p", state, p->name,p->pagetable,p->trapframe);
+    printf("\n");
+
+
+    printf("know process:\n");
+    if(p->pagetable==)
+
+  }
+}*/

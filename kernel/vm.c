@@ -6,6 +6,7 @@
 #include "defs.h"
 #include "fs.h"
 
+
 /*
  * the kernel's page table.
  */
@@ -85,8 +86,10 @@ kvminithart()
 pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
 {
-  if(va >= MAXVA)
+  if(va >= MAXVA){
+    printf("walk va:%p\n",va);
     panic("walk");
+  }
 
   for(int level = 2; level > 0; level--) {
     pte_t *pte = &pagetable[PX(level, va)];
@@ -144,6 +147,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 {
   uint64 a, last;
   pte_t *pte;
+ 
 
   if(size == 0)
     panic("mappages: size");
@@ -151,19 +155,30 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   a = PGROUNDDOWN(va);
   last = PGROUNDDOWN(va + size - 1);
   for(;;){
-    if((pte = walk(pagetable, a, 1)) == 0)
+    if((pte = walk(pagetable, a, 1)) == 0){
       return -1;
+    }
     if(*pte & PTE_V)
       panic("mappages: remap");
     *pte = PA2PTE(pa) | perm | PTE_V;
+    // only trace user page
+    if(pagetable!=kernel_pagetable&&a!=TRAMPOLINE&&a!=TRAPFRAME){
+      increase_ref(pa);
+    }
     if(a == last)
       break;
     a += PGSIZE;
     pa += PGSIZE;
   }
+
+
   return 0;
 }
 
+
+
+//uint64 get_refs(uint64 pa);
+//void print_trapfram();
 // Remove npages of mappings starting from va. va must be
 // page-aligned. The mappings must exist.
 // Optionally free the physical memory.
@@ -177,16 +192,24 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     panic("uvmunmap: not aligned");
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
-    if((pte = walk(pagetable, a, 0)) == 0)
+    if((pte = walk(pagetable, a, 0)) == 0){
+     // printf("uvmumap %p  ",a);
       panic("uvmunmap: walk");
+    }
     if((*pte & PTE_V) == 0)
       panic("uvmunmap: not mapped");
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
+
+    if(pagetable!=kernel_pagetable&&a!=TRAMPOLINE&&a!=TRAPFRAME){
+       decrease_ref( PTE2PA(*pte));
+    }
+
     if(do_free){
       uint64 pa = PTE2PA(*pte);
       kfree((void*)pa);
     }
+
     *pte = 0;
   }
 }
@@ -304,13 +327,15 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 // physical memory.
 // returns 0 on success, -1 on failure.
 // frees any allocated pages on failure.
+
+
 int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
+ 
   pte_t *pte;
   uint64 pa, i;
-  uint flags;
-
+  
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
@@ -318,21 +343,17 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
 
-   //set PTE_COW,if PTE_W is set,we should set PTE_PW and clear PTE_W
-    flags = PTE_FLAGS(*pte);
-    if(flags&PTE_W){
-       flags&=(~PTE_W);
-       flags|=PTE_COW;
+   //set PTE_COW,if PTE_W is set,we should set PTE_PW and clear PTE_W(both for parent and kid's pte)
+   // flags = PTE_FLAGS(*pte);
+    if(*pte&PTE_W){
+       *pte&=(~PTE_W);
+       *pte|=PTE_COW;
     }
 
     // map to the same physical page
-    if(mappages(new, i, PGSIZE, (uint64)pa, flags) != 0){
+    if(mappages(new, i, PGSIZE, (uint64)pa, PTE_FLAGS(*pte)) != 0){
       goto err;
     }
- 
-    //increase the physical page references
-    increase_ref(pa);
-
   }
   return 0;
 
@@ -354,6 +375,42 @@ uvmclear(pagetable_t pagetable, uint64 va)
   *pte &= ~PTE_U;
 }
 
+
+// copy-on-write at adress va ,va may not be page-aligned.
+// 0 for success,and -1 for fail,we need to kill the process.
+int uvmcow(pagetable_t pagetable,uint64 va){
+    pte_t *pte;
+    if(va>=MAXVA){
+      return 1;
+    }
+    // if is a cow page
+    if((pte = walk( pagetable, va, 0)) !=0&&(*pte)&PTE_COW){
+        uint64 pa=PTE2PA(*pte);
+        char *mem;
+        if((mem=kalloc())==0){
+           return 1;
+        }
+        memmove(mem,(char *)pa,PGSIZE);
+
+        int flags=PTE_FLAGS(*pte);
+        flags&=(~PTE_COW);
+        flags|=PTE_W;
+
+        uint64 a=PGROUNDDOWN(va);
+        uvmunmap( pagetable,a,1,1);
+
+        if(mappages(pagetable, a, PGSIZE, (uint64)mem, flags) != 0){
+            kfree(mem);
+            return 1;
+        }
+        return 0;
+    }else {
+      //not a cow page ot pte not exit
+        return -1;
+    }
+}
+
+
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.
 // Return 0 on success, -1 on error.
@@ -361,9 +418,16 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
+ 
 
   while(len > 0){
-    va0 = PGROUNDDOWN(dstva);
+     va0 = PGROUNDDOWN(dstva);
+    
+    // va is too big or some error when handler cow page
+    if(uvmcow(pagetable,va0)==1){
+      return -1;
+    }
+
     pa0 = walkaddr(pagetable, va0);
     if(pa0 == 0)
       return -1;

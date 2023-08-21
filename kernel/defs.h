@@ -65,6 +65,7 @@ void            kfree(void *);
 void            kinit(void);
 void    increase_ref(uint64 pa);
 void    decrease_ref(uint64 pa);
+//void enable_ref_trace(uint64 pa);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -170,6 +171,7 @@ int             uvmcopy(pagetable_t, pagetable_t, uint64);
 void            uvmfree(pagetable_t, uint64);
 void            uvmunmap(pagetable_t, uint64, uint64, int);
 void            uvmclear(pagetable_t, uint64);
+int             uvmcow(pagetable_t ,uint64 );
 pte_t *         walk(pagetable_t, uint64, int);
 uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);

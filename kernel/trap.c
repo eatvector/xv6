@@ -68,34 +68,10 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   }  else if(r_scause()==15){
-    // page fault
     uint64 va=r_stval();
-    pte_t *pte;
-    if((pte = walk(p->pagetable, va, 0)) !=0&&(*pte)&PTE_COW){
-        uint64 pa=PTE2PA(*pte);
-        char *mem;
-        if((mem=kalloc())==0){
-          // no enough memory,kill the peocess
-           setkilled(p);
-        }
-        memmove(mem,pa,PGSIZE);
-        int flags=PTE_FLAGS(*pte);
-        flags&=(~PTE_COW);
-        flags|=PTE_W;
-
-        uint64 a=PGROUNDDOWN(va);
-        decrease_ref(pa);
-        uvmunmap(p->pagetable,va,1,1);
-
-        if(mappages(p->pagetable, PGROUNDDOWN(va), PGSIZE, (uint64)mem, flags) != 0){
-             //uvmunmap(new, 0, i / PGSIZE, 1); 
-            setkilled(p);
-        }
-        increase_ref((uint64)mem);
-
-    }else {
-        printf("process can not access adress:%p\n",va);
-        setkilled(p);
+    if(uvmcow(p->pagetable,va)!=0){
+      //printf("fuvk error\n");
+      setkilled(p);
     }
   }
   else {
