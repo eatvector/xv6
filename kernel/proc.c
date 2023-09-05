@@ -466,6 +466,7 @@ scheduler(void)
         // It should have changed its p->state before coming back.
         c->proc = 0;
       }
+      //may release the lock acquire in sleep
       release(&p->lock);
     }
   }
@@ -494,7 +495,10 @@ sched(void)
     panic("sched interruptible");
 
   intena = mycpu()->intena;
+  //&mycpu()->context is the context of the scheduler
+  //&myproc()->context is the process's kernel thread context
   swtch(&p->context, &mycpu()->context);
+  // When scheduler decide to run a process p,and call swtch,it will arrive here 
   mycpu()->intena = intena;
 }
 

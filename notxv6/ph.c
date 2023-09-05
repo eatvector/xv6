@@ -13,7 +13,9 @@ struct entry {
   int value;
   struct entry *next;
 };
+
 struct entry *table[NBUCKET];
+pthread_mutex_t bucket_lock[NBUCKET];
 int keys[NKEYS];
 int nthread = 1;
 
@@ -40,9 +42,9 @@ static
 void put(int key, int value)
 {
   int i = key % NBUCKET;
-
   // is the key already present?
   struct entry *e = 0;
+  pthread_mutex_lock(&bucket_lock[i]);
   for (e = table[i]; e != 0; e = e->next) {
     if (e->key == key)
       break;
@@ -52,9 +54,10 @@ void put(int key, int value)
     e->value = value;
   } else {
     // the new is new.
+    //pthread_mutex_lock(&bucket_lock[i]);
     insert(key, value, &table[i], table[i]);
   }
-
+   pthread_mutex_unlock(&bucket_lock[i]);
 }
 
 static struct entry*
@@ -64,10 +67,11 @@ get(int key)
 
 
   struct entry *e = 0;
+  pthread_mutex_lock(&bucket_lock[i]);
   for (e = table[i]; e != 0; e = e->next) {
     if (e->key == key) break;
   }
-
+  pthread_mutex_unlock(&bucket_lock[i]);
   return e;
 }
 
@@ -75,7 +79,9 @@ static void *
 put_thread(void *xa)
 {
   int n = (int) (long) xa; // thread number
+  // nthreae push NKEYS keys in the hash_table
   int b = NKEYS/nthread;
+
 
   for (int i = 0; i < b; i++) {
     put(keys[b*n + i], n);
@@ -116,6 +122,12 @@ main(int argc, char *argv[])
   assert(NKEYS % nthread == 0);
   for (int i = 0; i < NKEYS; i++) {
     keys[i] = random();
+  }
+
+
+  // init bucket lock
+  for(int i=0;i<NBUCKET;i++){
+    pthread_mutex_init(&bucket_lock[i], NULL);
   }
 
   //

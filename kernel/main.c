@@ -41,5 +41,6 @@ main()
     plicinithart();   // ask PLIC for device interrupts
   }
 
+// each hart call this function after init,to chose a process to run
   scheduler();        
 }
