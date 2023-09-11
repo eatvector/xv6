@@ -32,9 +32,12 @@ ping(uint16 sport, uint16 dport, int attempts)
       exit(1);
     }
   }
+  
 
   char ibuf[128];
+  printf("start read\n");
   int cc = read(fd, ibuf, sizeof(ibuf)-1);
+  printf("end read\n");
   if(cc < 0){
     fprintf(2, "ping: recv() failed\n");
     exit(1);
