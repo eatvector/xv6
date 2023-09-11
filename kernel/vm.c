@@ -405,7 +405,7 @@ int uvmcow(pagetable_t pagetable,uint64 va){
         }
         return 0;
     }else {
-      //not a cow page ot pte not exit
+      //not a cow page or pte not exit
         return -1;
     }
 }
