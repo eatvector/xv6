@@ -102,6 +102,7 @@ e1000_transmit(struct mbuf *m)
   // the TX descriptor ring so that the e1000 sends it. Stash
   // a pointer so that it can be freed after sending.
   //
+  // [head,tail) is owned by hardware to send ,send one hardware move the head
   acquire(&e1000_lock);
   int next=regs[E1000_TDT];
  
