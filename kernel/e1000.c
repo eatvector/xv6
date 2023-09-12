@@ -21,6 +21,7 @@ static volatile uint32 *regs;
 
 struct spinlock e1000_lock;
 
+
 // called by pci_init().
 // xregs is the memory address at which the
 // e1000's registers are mapped.
@@ -30,6 +31,8 @@ e1000_init(uint32 *xregs)
   int i;
 
   initlock(&e1000_lock, "e1000");
+  
+
 
   regs = xregs;
 
@@ -102,23 +105,28 @@ e1000_transmit(struct mbuf *m)
   // the TX descriptor ring so that the e1000 sends it. Stash
   // a pointer so that it can be freed after sending.
   //
-  // [head,tail) is owned by hardware to send ,send one hardware move the head
+  // [head,tail) is owned by hardwsare to send ,send one hardware move the head
+
+  /*if(!holding(&e1000_lock)){
+    acquire(&e1000_lock);
+  }*/
+
   acquire(&e1000_lock);
+  //acquire(&e1000_lock);
   int next=regs[E1000_TDT];
  
   if((next+1)%TX_RING_SIZE==regs[E1000_TDH]||!(tx_ring[next].status& E1000_TXD_STAT_DD)){
     goto err;
   }
-  printf("send packge next %d\n",next);
+  
   if(tx_mbufs[next]){
      mbuffree(tx_mbufs[next]);
   }
-  printf("m adress %p len %d",m->head,m->len);
-  tx_ring[next].addr=(uint64)m->head;
+  tx_mbufs[next]=m;
+  tx_ring[next].addr=(uint64)tx_mbufs[next]->head;
   tx_ring[next].length=m->len;
   // set cmd  flag/RS set
-  tx_ring[next].cmd=0x88;
-  tx_mbufs[next]=m;
+  tx_ring[next].cmd=0x09;
   regs[E1000_TDT]=(next+1)%TX_RING_SIZE;
   release(&e1000_lock);
   return 0;
@@ -127,6 +135,9 @@ e1000_transmit(struct mbuf *m)
   release(&e1000_lock);
   return -1;
 }
+
+
+// may still have some bugs
 
 static void
 e1000_recv(void)
@@ -137,16 +148,19 @@ e1000_recv(void)
   // Check for packets that have arrived from the e1000
   // Create and deliver an mbuf for each packet (using net_rx()).
   //
-  acquire(&e1000_lock);
   int next=(regs[E1000_RDT]+1)%RX_RING_SIZE;
   int last_processed=regs[E1000_RDT];
+
   while(next!=regs[E1000_RDH]){
     if(rx_ring[next].status& E1000_RXD_STAT_DD){
       rx_mbufs[next]->len=rx_ring[next].length;
+
+     // may call transmit again
       net_rx(rx_mbufs[next]);
+      
       rx_mbufs[next]=mbufalloc(0);
       if (!rx_mbufs[next]){
-      panic("e1000");
+        panic("e1000");
       }
       rx_ring[next].addr=(uint64)rx_mbufs[next]->head;
       rx_ring[next].status=0;
@@ -156,10 +170,13 @@ e1000_recv(void)
       break;
     }
   }
+
 regs[E1000_RDT]=last_processed;
-release(&e1000_lock);
+
 }
  
+
+ // plci will chose a cpu core to serve this intr
 void
 e1000_intr(void)
 {
@@ -167,6 +184,8 @@ e1000_intr(void)
   // without this the e1000 won't raise any
   // further interrupts.
   regs[E1000_ICR] = 0xffffffff;
-
+  
+  //int id=cpuid();
+  //printf("cpu id:%d\n",id);
   e1000_recv();
 }

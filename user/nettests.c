@@ -35,9 +35,9 @@ ping(uint16 sport, uint16 dport, int attempts)
   
 
   char ibuf[128];
-  printf("start read\n");
+ 
   int cc = read(fd, ibuf, sizeof(ibuf)-1);
-  printf("end read\n");
+  
   if(cc < 0){
     fprintf(2, "ping: recv() failed\n");
     exit(1);
@@ -277,7 +277,7 @@ main(int argc, char *argv[])
   printf("OK\n");
   
   printf("testing multi-process pings: ");
-  for (i = 0; i < 10; i++){
+  for (i = 0; i < 30; i++){
     int pid = fork();
     if (pid == 0){
       ping(2000 + i + 1, dport, 1);
