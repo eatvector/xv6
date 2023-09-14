@@ -67,6 +67,7 @@ e1000_init(uint32 *xregs)
     panic("e1000");
   regs[E1000_RDH] = 0;
   regs[E1000_RDT] = RX_RING_SIZE - 1;
+  // hardware can dma data to [0,RX_RING_SIZE - 1)
   regs[E1000_RDLEN] = sizeof(rx_ring);
 
   // filter by qemu's MAC address, 52:54:00:12:34:56
@@ -107,12 +108,8 @@ e1000_transmit(struct mbuf *m)
   //
   // [head,tail) is owned by hardwsare to send ,send one hardware move the head
 
-  /*if(!holding(&e1000_lock)){
-    acquire(&e1000_lock);
-  }*/
-
+  
   acquire(&e1000_lock);
-  //acquire(&e1000_lock);
   int next=regs[E1000_TDT];
  
   if((next+1)%TX_RING_SIZE==regs[E1000_TDH]||!(tx_ring[next].status& E1000_TXD_STAT_DD)){
@@ -151,7 +148,9 @@ e1000_recv(void)
   int next=(regs[E1000_RDT]+1)%RX_RING_SIZE;
   int last_processed=regs[E1000_RDT];
 
-  while(next!=regs[E1000_RDH]){
+ 
+  while(1){
+  
     if(rx_ring[next].status& E1000_RXD_STAT_DD){
       rx_mbufs[next]->len=rx_ring[next].length;
 
@@ -170,7 +169,6 @@ e1000_recv(void)
       break;
     }
   }
-
 regs[E1000_RDT]=last_processed;
 
 }
