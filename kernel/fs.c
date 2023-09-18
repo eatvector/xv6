@@ -222,6 +222,7 @@ ialloc(uint dev, short type)
 // Must be called after every change to an ip->xxx field
 // that lives on disk.
 // Caller must hold ip->lock.
+// move inode in memory to didk.
 void
 iupdate(struct inode *ip)
 {
@@ -349,7 +350,9 @@ iput(struct inode *ip)
 
     itrunc(ip);
     ip->type = 0;
+    // not update type=0 to disk
     iupdate(ip);
+    // update to disk,so ialloc can use it 
     ip->valid = 0;
 
     releasesleep(&ip->lock);
