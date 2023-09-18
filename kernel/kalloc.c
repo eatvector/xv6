@@ -60,8 +60,10 @@ kfree(void *pa)
   memset(pa, 1, PGSIZE);
   r = (struct run*)pa;
   
+  acquire(&kmem[id].lock);
   r->next = kmem[id].freelist;
   kmem[id].freelist = r;
+  release(&kmem[id].lock);
 
   pop_off();
 }
@@ -77,13 +79,28 @@ kalloc(void)
 
   int id=cpuid();
 
-
-
-  acquire(&kmem.lock);
-  r = kmem.freelist;
+  acquire(&kmem[id].lock);
+  r = kmem[id].freelist;
   if(r)
-    kmem.freelist = r->next;
-  release(&kmem.lock);
+    kmem[id].freelist = r->next;
+  release(&kmem[id].lock);
+
+  //   steal from other cpus' freelist
+  if(!r){
+       for(int i=0;i<NCPU;i++){
+         if(i!=id){
+            acquire(&kmem[i].lock);
+            if(kmem[i].freelist){
+               r=kmem[i].freelist;
+               kmem[i].freelist=r->next;
+               release(&kmem[i].lock);
+               break;
+            }
+            release(&kmem[i].lock);
+         }
+       }
+  }
+
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
