@@ -33,6 +33,9 @@ struct {
   struct buf head;
 } bcache;
 
+
+
+
 void
 binit(void)
 {
@@ -67,6 +70,7 @@ bget(uint dev, uint blockno)
     if(b->dev == dev && b->blockno == blockno){
       b->refcnt++;
       release(&bcache.lock);
+      // only one process can use this buffer 
       acquiresleep(&b->lock);
       return b;
     }
@@ -96,6 +100,7 @@ bread(uint dev, uint blockno)
 
   b = bget(dev, blockno);
   if(!b->valid) {
+    // read data from disk to buffer
     virtio_disk_rw(b, 0);
     b->valid = 1;
   }

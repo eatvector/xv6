@@ -18,6 +18,8 @@ struct run {
   struct run *next;
 };
 
+
+// each cpu have a freelist
 struct {
   struct spinlock lock;
   struct run *freelist;
