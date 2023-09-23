@@ -41,10 +41,8 @@ binit(void)
 {
   struct buf *b;
   
-   
   initlock(&bcache.lock, "bcache");
-  
-  // init spinlock per bucket
+
   for(int i=0;i<NBUCKET;i++)
     initlock(&bucketlock[i],"bcache.bucket");
 
@@ -58,68 +56,41 @@ binit(void)
       b->prev=&table[0];
       initsleeplock(&b->lock, "buffer");
   }
-
- /* // Create linked list of buffers
-  bcache.head.prev = &bcache.head;
-  bcache.head.next = &bcache.head;
-  for(b = bcache.buf; b < bcache.buf+NBUF; b++){
-    b->next = bcache.head.next;
-    b->prev = &bcache.head;
-    initsleeplock(&b->lock, "buffer");
-    bcache.head.next->prev = b;
-    bcache.head.next = b;
-  }*/
 }
 
-
-/*static struct   buf *bget_key(uint key,uint dev, uint blockno){
-  if(!holding(&bucketlock[key])){
-    panic("bget_key");
-  }
-  struct buf *b;
-  struct buf *free_buf=0;
-
-  for(b=table[key].next;b;b=b->next){
-     if(b->dev == dev && b->blockno == blockno){
-      b->refcnt++;
-      release(&bucketlock[key]);
-      acquiresleep(&b->lock);
-      
-      return b;
+static struct buf*bget_by_key(uint key,uint dev,uint blockno){
+    if(!holding(&bucketlock[key])){
+      panic("key_find_free");
     }
-     if(b->refcnt==0){
-       free_buf=b;
-     }
-  }
-  return free_buf;
-}*/
+    struct buf *b=0;
+    struct buf *free_buf=0;
 
-static struct  buf *key_find(uint key,uint dev, uint blockno){
-  if(!holding(&bucketlock[key])){
-    panic("key_find");
-  }
-  struct buf *b;
-   for(b=table[key].next;b;b=b->next){
+    for(b=table[key].next;b;b=b->next){
+
      if(b->dev == dev && b->blockno == blockno){
       b->refcnt++;
       release(&bucketlock[key]);
-      acquiresleep(&b->lock);
       break;
     }
-  }
-  return b;
-}
 
-static struct  buf *key_find_free(uint key){
-  if(!holding(&bucketlock[key])){
-    panic("key_find_free");
-  }
-   struct buf *b;
-   for(b=table[key].next;b;b=b->next){
     if(b->refcnt==0){
-      break;
+       free_buf=b;
     }
   }
+
+  if(!b&&free_buf){
+    b=free_buf;
+    b->dev=dev;
+    b->blockno=blockno;
+    b->valid=0;
+    b->refcnt=1;
+    release(&bucketlock[key]);
+  }
+
+  if(b){
+    acquiresleep(&b->lock);
+  }
+  
   return b;
 }
 
@@ -131,23 +102,15 @@ static struct buf*
 bget(uint dev, uint blockno)
 {
   struct buf *b;
-  int key=blockno%NBUCKET;
+  uint key=blockno%NBUCKET;
 
-  //acquire(&bcache.lock);
   acquire(&bucketlock[key]);
 
- // b=bget_key(key,dev,blockno);
-  b=key_find(key,dev,blockno);
-  if(b){
-    return b;
-  }else{
-    b=key_find_free(key);
-    if(b){
-       acquire(&bcache.lock);
-      goto FIND;
-    }
-  }
-  
+ b=bget_by_key(key,dev,blockno);
+ if(b){
+   return b;
+ }
+
   //to avoid dead lock
   release(&bucketlock[key]);
 
@@ -155,29 +118,23 @@ bget(uint dev, uint blockno)
   acquire(&bucketlock[key]);
 
 
-  b=key_find(key,dev,blockno);
+  b=bget_by_key(key,dev,blockno);
   if(b){
-    release(&bcache.lock);
-    return b;
-  }else{
-    b=key_find_free(key);
-    if(b){
-      goto FIND;
-    }
+     release(&bcache.lock);
+     return b;
   }
 
    for(int i=0;i<NBUCKET;i++){
      if(i!=key){
 
-       // acquire(&bucketlock[i]);
+        acquire(&bucketlock[i]);
         for(b=table[i].next;b;b=b->next){
-          // we need to modify here.
             if(b->refcnt==0){
                if(b->next){
                  b->next->prev=b->prev;
                }
                b->prev->next=b->next;
-             // release(&bucketlock[i]);
+               release(&bucketlock[i]);
                
                 
                b->next=table[key].next;
@@ -189,19 +146,17 @@ bget(uint dev, uint blockno)
                goto FIND;
             }
         }
-       // release(&bucketlock[i]);
+        release(&bucketlock[i]);
 
      }
    }
 
+// should arrive here
   release(&bucketlock[key]);
   release(&bcache.lock);
   panic("bget: no buffers");
 
   FIND:
-     if(b==0){
-       panic("free_buf");
-     }
      b->dev=dev;
      b->blockno=blockno;
      b->valid=0;
@@ -247,7 +202,7 @@ brelse(struct buf *b)
 
   releasesleep(&b->lock);
  
-  int key=b->blockno%NBUCKET;
+  uint key=b->blockno%NBUCKET;
   //acquire(&bcache.lock);
   acquire(&bucketlock[key]);
   b->refcnt--;
@@ -258,8 +213,8 @@ brelse(struct buf *b)
 void
 bpin(struct buf *b) {
  // acquire(&bcache.lock);
-  int key=b->blockno%NBUCKET;
-   acquire(&bucketlock[key]);
+  uint key=b->blockno%NBUCKET;
+  acquire(&bucketlock[key]);
   b->refcnt++;
   release(&bucketlock[key]);
 }
@@ -267,7 +222,7 @@ bpin(struct buf *b) {
 void
 bunpin(struct buf *b) {
   //acquire(&bcache.lock);
-  int key=b->blockno%NBUCKET;
+  uint key=b->blockno%NBUCKET;
   acquire(&bucketlock[key]);
   b->refcnt--;
   release(&bucketlock[key]);
