@@ -34,7 +34,7 @@
 // and to keep track in memory of logged block# before commit.
 struct logheader {
   int n;
-  int block[LOGSIZE];
+  int block[LOGSIZE];// LOGSIZE is about 30.
 };
 
 struct log {
@@ -58,6 +58,7 @@ initlog(int dev, struct superblock *sb)
     panic("initlog: too big logheader");
 
   initlock(&log.lock, "log");
+  // the start log block
   log.start = sb->logstart;
   log.size = sb->nlog;
   log.dev = dev;
@@ -184,7 +185,7 @@ write_log(void)
     struct buf *to = bread(log.dev, log.start+tail+1); // log block
     struct buf *from = bread(log.dev, log.lh.block[tail]); // cache block
     memmove(to->data, from->data, BSIZE);
-    bwrite(to);  // write the log
+    bwrite(to);  // write the log(log block in disk)
     brelse(from);
     brelse(to);
   }
@@ -194,9 +195,10 @@ static void
 commit()
 {
   if (log.lh.n > 0) {
-    write_log();     // Write modified blocks from cache to log
-    write_head();    // Write header to disk -- the real commit
-    install_trans(0); // Now install writes to home locations
+    write_log();     // Write modified blocks from cache to log(write log block in disk)
+    //notice that write a disk block is atomatic 
+    write_head();    // Write header to disk -- the real commit (write log head in disk)
+    install_trans(0); // Now install writes to home locations (write log block into data block in disk)
     log.lh.n = 0;
     write_head();    // Erase the transaction from the log
   }
@@ -226,6 +228,8 @@ log_write(struct buf *b)
     if (log.lh.block[i] == b->blockno)   // log absorption
       break;
   }
+
+  //if we can reach here,we always have enough space
   log.lh.block[i] = b->blockno;
   if (i == log.lh.n) {  // Add new block to log?
     bpin(b);

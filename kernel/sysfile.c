@@ -223,6 +223,7 @@ sys_unlink(void)
   if(writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     panic("unlink: writei");
   if(ip->type == T_DIR){
+    // i do not understand this.
     dp->nlink--;
     iupdate(dp);
   }
