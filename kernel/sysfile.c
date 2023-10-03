@@ -130,6 +130,8 @@ sys_link(void)
     return -1;
 
   begin_op();
+
+  //find the inode we want to link to
   if((ip = namei(old)) == 0){
     end_op();
     return -1;
@@ -149,6 +151,7 @@ sys_link(void)
   if((dp = nameiparent(new, name)) == 0)
     goto bad;
   ilock(dp);
+  // must on the same dev
   if(dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0){
     iunlockput(dp);
     goto bad;
@@ -324,12 +327,51 @@ sys_open(void)
       return -1;
     }
   } else {
-    if((ip = namei(path)) == 0){
-      end_op();
-      return -1;
+    // change here to recognized the sysmlink
+    int max_depth=omode&O_NOFOLLOW? 1:SYSLINKDEPTH;
+    
+    for(int i=0;i<max_depth;i++){
+
+      if((ip = namei(path)) == 0){
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
+
+      ilock(ip);
+
+      if(ip->type == T_DIR){
+        if(max_depth==1&&omode != O_RDONLY){
+          iunlockput(ip);
+          end_op();
+          return -1;
+        }
+
+        if(max_depth==SYSLINKDEPTH){
+          panic("Not implement symlink to dir");
+        }
+      }
+
+      else if(ip->type==T_SYMLINK){
+        // read link path
+        // we need to add error handling
+        if(readi(ip,0,path,0,ip->size)!=ip->size){
+          // may distory the file in this 
+          iunlockput(ip);
+          end_op();
+          return -1;
+        }
+      }
+
+      else{
+        // Not a symlink file
+        break;
+      }
     }
-    ilock(ip);
-    if(ip->type == T_DIR && omode != O_RDONLY){
+    
+    if(max_depth==SYSLINKDEPTH&&ip->type==T_SYMLINK){
+      // symlink too depth
+      // i am not sure about this two
       iunlockput(ip);
       end_op();
       return -1;
@@ -504,3 +546,35 @@ sys_pipe(void)
   }
   return 0;
 }
+
+
+//we should implement this
+// need to modify
+uint64 symlink(void){
+    char target[MAXPATH],linkpath[MAXPATH];
+    struct inode *ip;
+    
+    if(argstr(0, target, MAXPATH) < 0 || argstr(1, linkpath, MAXPATH) < 0)
+      return -1;
+
+    begin_op();
+  // create the link file
+    ip=create(linkpath,T_SYMLINK,0,0);
+    if(ip){
+      end_op();
+      return -1;
+    } 
+  //write the tartget path  to the symlink file
+    ilock(ip);
+    int n=strlen(target)+1;// we incluse '/0' here
+    if(writei(ip,0,target,0,n)!=n){
+      // or iunlock
+      iunlockput(ip);
+      end_op();
+      return -1;
+    }
+    iunlockput(ip);
+    end_op();
+    return 0;
+}
+ 
