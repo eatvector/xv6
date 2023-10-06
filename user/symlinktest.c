@@ -60,16 +60,20 @@ testsymlink(void)
   char c = 0, c2 = 0;
   struct stat st;
     
-  printf("Start: test symlinks\n");
+  
 
   mkdir("/testsymlink");
 
   fd1 = open("/testsymlink/a", O_CREATE | O_RDWR);
   if(fd1 < 0) fail("failed to open a");
 
+
+  
   r = symlink("/testsymlink/a", "/testsymlink/b");
   if(r < 0)
     fail("symlink b -> a failed");
+
+ 
 
   if(write(fd1, buf, sizeof(buf)) != 4)
     fail("failed to write to a");
@@ -80,11 +84,15 @@ testsymlink(void)
     fail("b isn't a symlink");
 
   fd2 = open("/testsymlink/b", O_RDWR);
+
+ 
   if(fd2 < 0)
     fail("failed to open b");
   read(fd2, &c, 1);
   if (c != 'a')
     fail("failed to read bytes from b");
+ 
+
 
   unlink("/testsymlink/a");
   if(open("/testsymlink/b", O_RDWR) >= 0)
@@ -94,9 +102,13 @@ testsymlink(void)
   if(r < 0)
     fail("symlink a -> b failed");
 
+   // here hae one bug
+  
   r = open("/testsymlink/b", O_RDWR);
   if(r >= 0)
     fail("Should not be able to open b (cycle b->a->b->..)\n");
+ 
+
   
   r = symlink("/testsymlink/nonexistent", "/testsymlink/c");
   if(r != 0)
@@ -131,6 +143,9 @@ done:
   close(fd2);
 }
 
+
+
+// i can not pass this code test
 static void
 concur(void)
 {
@@ -139,7 +154,7 @@ concur(void)
   struct stat st;
   int nchild = 2;
 
-  printf("Start: test concurrent symlinks\n");
+  //printf("Start: test concurrent symlinks\n");
     
   fd = open("/testsymlink/z", O_CREATE | O_RDWR);
   if(fd < 0) {

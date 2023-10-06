@@ -263,8 +263,9 @@ iget(uint dev, uint inum)
   }
 
   // Recycle an inode entry.
-  if(empty == 0)
+  if(empty == 0){
     panic("iget: no inodes");
+  }
 
   ip = empty;
   ip->dev = dev;
@@ -647,7 +648,7 @@ dirlookup(struct inode *dp, char *name, uint *poff)
       if(poff)
         *poff = off;
       inum = de.inum;
-      // the inode return is not locked
+      // the inode return  hold no locks but ref++;
       return iget(dp->dev, inum);
     }
   }
