@@ -589,7 +589,10 @@ uint64 sys_symlink(void){
     }
     // we do not want destory it
     // if we use iunlock ,this will panic
+    // refs how many process hold the ip pointer,nlinks (hard link)
+    //printf("ip info :ref:%d nlinks:%d\n",ip->ref,ip->nlink);
     iunlockput(ip);
+    
     end_op();
     return 0;
 }
