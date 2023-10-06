@@ -4,6 +4,7 @@
         "*.tcc": "c",
         "chrono": "c",
         "string_view": "c",
-        "defs.h": "c"
+        "defs.h": "c",
+        "user.h": "c"
     }
 }

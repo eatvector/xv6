@@ -217,16 +217,21 @@ sys_unlink(void)
 
   if(ip->nlink < 1)
     panic("unlink: nlink < 1");
+ 
   if(ip->type == T_DIR && !isdirempty(ip)){
     iunlockput(ip);
     goto bad;
   }
 
+  // clean the dir entry(in memory)
   memset(&de, 0, sizeof(de));
+
   if(writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     panic("unlink: writei");
+
   if(ip->type == T_DIR){
     // i do not understand this.
+    //ip hold .. ,point to dp
     dp->nlink--;
     iupdate(dp);
   }
@@ -234,6 +239,7 @@ sys_unlink(void)
 
   ip->nlink--;
   iupdate(ip);
+  //may destory ip
   iunlockput(ip);
 
   end_op();
