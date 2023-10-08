@@ -26,6 +26,8 @@ void            consputc(int);
 int             exec(char*, char**);
 
 // file.c
+struct vma*vmaalloc(void);
+void vmafree(struct vma*vma);
 struct file*    filealloc(void);
 void            fileclose(struct file*);
 struct file*    filedup(struct file*);

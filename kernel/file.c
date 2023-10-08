@@ -14,15 +14,48 @@
 #include "proc.h"
 
 struct devsw devsw[NDEV];
+
 struct {
   struct spinlock lock;
   struct file file[NFILE];
 } ftable;
 
+struct {
+  struct spinlock lock;
+  struct vma vma[NVMA];
+}vmatable;
+
+
+struct vma*vmaalloc(void){
+  acquire(&vmatable.lock);
+  for(int i=0;i<NVMA;i++){
+     if(vmatable.vma[i].f==0){
+        vmatable.vma[i].isalloc=1;
+        release(&vmatable.lock);
+        return &vmatable.vma[i];
+     }
+  }
+  release(&vmatable.lock);
+  return 0;
+}
+
+void vmafree(struct vma*vma){
+    acquire(&vmatable.lock);
+    vma->addr=0;
+    vma->f=0;
+    vma->isalloc=0;
+    vma->lenth=0;
+    vma->permissions=0;
+    release(&vmatable.lock);
+}
+
+
+
 void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
+  initlock(&vmatable.lock,"vmatable");
 }
 
 // Allocate a file structure.

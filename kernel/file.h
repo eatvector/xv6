@@ -37,4 +37,13 @@ struct devsw {
 
 extern struct devsw devsw[];
 
+// for mmap
+struct vma{
+  void *addr;
+  uint lenth;
+  int permissions;
+  struct file*f;
+  int isalloc;
+};
+
 #define CONSOLE 1

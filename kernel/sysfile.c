@@ -503,3 +503,24 @@ sys_pipe(void)
   }
   return 0;
 }
+
+
+// assume that addr is 0,offset is 0
+// prot is 
+
+void *sys_mmap(void *addr, uint length, int prot, int flags,
+                  int fd, uint offset){
+    
+    if(addr!=0||offset!=0||((prot& (PROT_READ|PROT_WRITE))==0)||(flags!= MAP_SHARED&&flags!=MAP_PRIVATE)){
+      return 0xffffffffffffffff;
+    }
+
+    
+  
+}
+
+ int sys_munmap(void *addr, uint length){
+
+ }
+
+
