@@ -29,7 +29,7 @@ struct {
 struct vma*vmaalloc(void){
   acquire(&vmatable.lock);
   for(int i=0;i<NVMA;i++){
-     if(vmatable.vma[i].f==0){
+     if(vmatable.vma[i].isalloc==0){
         vmatable.vma[i].isalloc=1;
         release(&vmatable.lock);
         return &vmatable.vma[i];
@@ -45,7 +45,8 @@ void vmafree(struct vma*vma){
     vma->f=0;
     vma->isalloc=0;
     vma->lenth=0;
-    vma->permissions=0;
+    vma->flags=0;
+    vma->prot=0;
     release(&vmatable.lock);
 }
 

@@ -508,18 +508,71 @@ sys_pipe(void)
 // assume that addr is 0,offset is 0
 // prot is 
 
-void *sys_mmap(void *addr, uint length, int prot, int flags,
-                  int fd, uint offset){
-    
+void *sys_mmap(void){
+
+    // read the args from register
+
+     uint64 addr;
+     argaddr(0,&addr);
+
+     int length;
+     argint(1,&length);
+
+     int prot;
+     argint(2,&prot);
+
+     int flags;
+     argint(3,&flags);
+
+     int fd;
+     argint(4,&fd);
+
+     int offset;
+     argint(5,&offset);
+
     if(addr!=0||offset!=0||((prot& (PROT_READ|PROT_WRITE))==0)||(flags!= MAP_SHARED&&flags!=MAP_PRIVATE)){
-      return 0xffffffffffffffff;
+      return (void *)0xffffffffffffffff;
     }
 
-    
-  
+    struct  vma* vma=vmaalloc();
+    if(vma==0){
+      return (void *)0xffffffffffffffff;
+    }
+
+
+    struct proc*p=myproc();
+
+    vma->addr=(void *)addr;
+    vma->lenth=length;
+    vma->f=p->ofile[fd];
+    vma->prot=prot;
+    vma->flags=flags;
+
+    for(int i=0;i<NVMA;i++){
+        if(p->mapregiontable[i]==0){
+          p->mapregiontable[i]=vma;
+          break;
+        }
+    }
+
+
+   //map file from  adress sz
+   uint64 sz=PGROUNDUP(p->sz);
+
+   // so malloc can work right
+   p->sz=sz+length;
+
+   // increase the file's reference count so that the structure doesn't disappear when the file is closed
+   filedup(vma->f);
+
+   return (void *)sz ;
 }
 
  int sys_munmap(void *addr, uint length){
+
+
+  return -1;
+   
 
  }
 

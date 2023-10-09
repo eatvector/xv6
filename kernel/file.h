@@ -41,7 +41,8 @@ extern struct devsw devsw[];
 struct vma{
   void *addr;
   uint lenth;
-  int permissions;
+  int prot;
+  int flags;
   struct file*f;
   int isalloc;
 };
