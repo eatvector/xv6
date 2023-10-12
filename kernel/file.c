@@ -43,13 +43,26 @@ void vmafree(struct vma*vma){
     acquire(&vmatable.lock);
     vma->addr=0;
     vma->f=0;
+    vma->off=0;
     vma->isalloc=0;
     vma->lenth=0;
     vma->flags=0;
     vma->prot=0;
+    vma->inmemory=0;
     release(&vmatable.lock);
 }
 
+void vmacopy(struct vma*src,struct vma *dst){
+    dst->addr=src->addr;
+    // Don't forget to increment the reference count for a VMA's struct file. 
+    // i refs(how many pointer point to it)
+    dst->f=filedup(src->f);
+    dst->flags=src->flags;
+    dst->lenth=src->lenth;
+    dst->prot=src->prot;
+    dst->off=src->off;
+    dst->inmemory=src->inmemory;
+}
 
 
 void
@@ -98,6 +111,7 @@ fileclose(struct file *f)
   acquire(&ftable.lock);
   if(f->ref < 1)
     panic("fileclose");
+  //ref count is bigger than zero ,so we can not remove it
   if(--f->ref > 0){
     release(&ftable.lock);
     return;

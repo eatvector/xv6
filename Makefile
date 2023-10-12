@@ -30,7 +30,7 @@ OBJS = \
   $K/sysfile.o \
   $K/kernelvec.o \
   $K/plic.o \
-  $K/virtio_disk.o
+  $K/virtio_disk.o\
 
 OBJS_KCSAN = \
   $K/start.o \
@@ -59,6 +59,11 @@ OBJS += \
 	$K/pci.o
 endif
 
+
+ifeq ($(LAB),mmap)
+OBJS += \
+	$K/mmap.o 
+endif
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin

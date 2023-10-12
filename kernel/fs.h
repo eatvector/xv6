@@ -53,6 +53,9 @@ struct dinode {
 // Directory is a file containing a sequence of dirent structures.
 #define DIRSIZ 14
 
+// for mmap 
+#define MMAPMAXLENTH 4*PGSIZE
+
 struct dirent {
   ushort inum;
   char name[DIRSIZ];

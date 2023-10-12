@@ -53,6 +53,8 @@ procinit(void)
   initlock(&wait_lock, "wait_lock");
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
+      // all is free
+      p->mmapbitmap=0xFFFF;
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
   }
@@ -294,6 +296,26 @@ fork(void)
     release(&np->lock);
     return -1;
   }
+ 
+
+ // for mmap  fork
+ // we fuck panic in fileclose
+ np->mmapbitmap=p->mmapbitmap;
+
+  for(int i=0;i<NVMA;i++){
+     if(p->mapregiontable[i]==0){
+       np->mapregiontable[i]=0;
+     }else{
+       np->mapregiontable[i]=vmaalloc();
+       if(np->mapregiontable[i]==0){
+          release(&np->lock);
+           return -1;
+       }
+       vmacopy(p->mapregiontable[i],np->mapregiontable[i]);
+     }
+  }
+
+// data ,code ,heap
   np->sz = p->sz;
 
   // copy saved user registers.
@@ -351,6 +373,9 @@ exit(int status)
   if(p == initproc)
     panic("init exiting");
 
+  // for mmap
+   munmapallfile();
+  
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){

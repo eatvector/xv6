@@ -3,6 +3,8 @@
         "file.h": "c",
         "fs.h": "c",
         "proc.h": "c",
-        "defs.h": "c"
+        "defs.h": "c",
+        "fcntl.h": "c",
+        "memlayout.h": "c"
     }
 }

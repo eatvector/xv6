@@ -39,12 +39,14 @@ extern struct devsw devsw[];
 
 // for mmap
 struct vma{
-  void *addr;
-  uint lenth;
+  uint64 addr;
+  uint lenth;//lenth is less then 4,so 4 is enough
+  uint off;
   int prot;
   int flags;
   struct file*f;
   int isalloc;
+  uint8 inmemory;
 };
 
 #define CONSOLE 1

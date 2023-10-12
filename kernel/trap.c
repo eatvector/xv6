@@ -69,7 +69,8 @@ usertrap(void)
     // ok
   } else if(r_scause()==0xd){
     // if we have a load page fault
-       if(mmap(r_sepc())!=0){
+      // printf("lost page at %p\n",r_stval());
+       if(mmapfile(r_stval())!=0){
            printf("usertrap():load page fault");
            setkilled(p);
        }

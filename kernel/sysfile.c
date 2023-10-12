@@ -15,6 +15,7 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include  "memlayout.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -354,6 +355,7 @@ sys_open(void)
     f->major = ip->major;
   } else {
     f->type = FD_INODE;
+    //when open a file,off is first to 0
     f->off = 0;
   }
   f->ip = ip;
@@ -507,8 +509,10 @@ sys_pipe(void)
 
 // assume that addr is 0,offset is 0
 // prot is 
+// do error handling
 
-void *sys_mmap(void){
+
+uint64 sys_mmap(void){
 
     // read the args from register
 
@@ -530,24 +534,56 @@ void *sys_mmap(void){
      int offset;
      argint(5,&offset);
 
-    if(addr!=0||offset!=0||((prot& (PROT_READ|PROT_WRITE))==0)||(flags!= MAP_SHARED&&flags!=MAP_PRIVATE)){
-      return (void *)0xffffffffffffffff;
+    struct proc*p=myproc();
+    
+    if(length>MMAPMAXLENTH||length%PGSIZE!=0||length>p->ofile[fd]->ip->size){
+      return -1;
     }
+
+    if(addr!=0||offset!=0||((prot& (PROT_READ|PROT_WRITE))==0)||(flags!= MAP_SHARED&&flags!=MAP_PRIVATE)){
+      return -1;
+    }
+
+  
+   // may have bugs here
+    if((flags==MAP_SHARED)&&p->ofile[fd]->writable==0&&((prot&PROT_WRITE)!=0)){
+        return -1;
+    }
+
+    uint64 start_addr;
+    //find a ohysical memory for this
+    // here we can do some hacks
+    // my implement is dirty
+    int i=0;
+    for(;i<16;i++){
+      if((p->mmapbitmap&(1<<i))!=0){
+        break;
+      }
+    }
+
+    // no free  va
+    if(i==16){
+       return -1;
+    }
+
+    start_addr=MMAPADDR+(i*MMAPMAXLENTH);
+    p->mmapbitmap&=~(1<<i);
 
     struct  vma* vma=vmaalloc();
     if(vma==0){
-      return (void *)0xffffffffffffffff;
+      return -1;
     }
 
-
-    struct proc*p=myproc();
-
-    vma->addr=(void *)addr;
+    vma->addr=start_addr;
     vma->lenth=length;
+    // fd check
     vma->f=p->ofile[fd];
+    filedup(vma->f);
+
     vma->prot=prot;
     vma->flags=flags;
 
+   //mapregiontable always have enough space
     for(int i=0;i<NVMA;i++){
         if(p->mapregiontable[i]==0){
           p->mapregiontable[i]=vma;
@@ -555,25 +591,20 @@ void *sys_mmap(void){
         }
     }
 
-
-   //map file from  adress sz
-   uint64 sz=PGROUNDUP(p->sz);
-
-   // so malloc can work right
-   p->sz=sz+length;
-
-   // increase the file's reference count so that the structure doesn't disappear when the file is closed
-   filedup(vma->f);
-
-   return (void *)sz ;
+   return vma->addr ;
 }
 
- int sys_munmap(void *addr, uint length){
+ int sys_munmap(void){
+  
+  uint64 addr;
+  argaddr(0,&addr);
 
+  int length;
+  argint(1,&length);
 
-  return -1;
+   //args check is put in munmapfile
+  return munmapfile(addr,length);
    
-
  }
 
 

@@ -52,6 +52,8 @@ _v1(char *p)
   }
 }
 
+
+
 //
 // create a file to be mapped, containing
 // 1.5 pages of 'A' and half a page of zeros.
@@ -164,6 +166,8 @@ mmap_test(void)
   // check that the mapping still works after close(fd).
   _v1(p);
 
+
+  printf("write dirty data start adress %p\n",p);
   // write the mapped memory.
   for (i = 0; i < PGSIZE*2; i++)
     p[i] = 'Z';
@@ -210,6 +214,7 @@ mmap_test(void)
     err("open mmap1");
   if(write(fd1, "12345", 5) != 5)
     err("write mmap1");
+  
   char *p1 = mmap(0, PGSIZE, PROT_READ, MAP_PRIVATE, fd1, 0);
   if(p1 == MAP_FAILED)
     err("mmap mmap1");
@@ -221,16 +226,22 @@ mmap_test(void)
     err("open mmap2");
   if(write(fd2, "67890", 5) != 5)
     err("write mmap2");
+ 
   char *p2 = mmap(0, PGSIZE, PROT_READ, MAP_PRIVATE, fd2, 0);
   if(p2 == MAP_FAILED)
     err("mmap mmap2");
   close(fd2);
-  unlink("mmap2");
+  unlink("mmap2\n");
 
   if(memcmp(p1, "12345", 5) != 0)
     err("mmap1 mismatch");
-  if(memcmp(p2, "67890", 5) != 0)
-    err("mmap2 mismatch");
+  if(memcmp(p2, "67890", 5) != 0){
+    char *errc=p2;
+    for(int i=0;i<5;i++){
+       printf("%c",*(errc++));
+    }
+    err("  mmap2 mismatch");
+  }
 
   munmap(p1, PGSIZE);
   if(memcmp(p2, "67890", 5) != 0)
@@ -271,12 +282,18 @@ fork_test(void)
   // read just 2nd page.
   if(*(p1+PGSIZE) != 'A')
     err("fork mismatch (1)");
+  
+
+   printf("before fork");
+   //check(p1);
+   //check(p2);
 
   if((pid = fork()) < 0)
     err("fork");
   if (pid == 0) {
     _v1(p1);
     munmap(p1, PGSIZE); // just the first page
+    //check(p2);
     exit(0); // tell the parent that the mapping looks OK.
   }
 
@@ -289,6 +306,11 @@ fork_test(void)
   }
 
   // check that the parent's mappings are still there.
+
+  //check(p1);
+  //check(p2);
+  //_v1(p2);
+ // printf("parent vq start\n");
   _v1(p1);
   _v1(p2);
 

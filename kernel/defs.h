@@ -28,6 +28,9 @@ int             exec(char*, char**);
 // file.c
 struct vma*vmaalloc(void);
 void vmafree(struct vma*vma);
+void vmacopy(struct vma*src,struct vma *dst);
+
+
 struct file*    filealloc(void);
 void            fileclose(struct file*);
 struct file*    filedup(struct file*);
@@ -187,8 +190,14 @@ void            virtio_disk_init(void);
 void            virtio_disk_rw(struct buf *, int);
 void            virtio_disk_intr(void);
 
+
+
+#ifdef LAB_MMAP
 // mmap.c
-int mmap(uint64);
+int mmapfile(uint64);
+int  munmapfile(uint64 addr,uint len);
+void munmapallfile();
+#endif
 
 
 // number of elements in fixed-size array

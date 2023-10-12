@@ -65,3 +65,10 @@
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
+
+
+//for memory map file
+#define  NMMAP  64
+// start map from this adress
+#define  MMAPADDR TRAPFRAME-NMMAP*PGSIZE
+

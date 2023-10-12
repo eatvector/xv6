@@ -104,7 +104,8 @@ struct proc {
   
   // for recode mmap
   struct vma*mapregiontable[NVMA];
-  
+  uint16 mmapbitmap;
+ 
   struct trapframe *trapframe; // data page for trampoline.S
   struct context context;      // swtch() here to run process
   struct file *ofile[NOFILE];  // Open files
