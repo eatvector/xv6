@@ -536,7 +536,9 @@ uint64 sys_mmap(void){
 
     struct proc*p=myproc();
     
-    if(length>MMAPMAXLENTH||length%PGSIZE!=0||length>p->ofile[fd]->ip->size){
+
+    
+    if(length==0||length>MMAPMAXLENTH||length%PGSIZE!=0){
       return -1;
     }
 

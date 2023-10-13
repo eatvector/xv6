@@ -51,20 +51,24 @@ int mmapfile(uint64 addr){
     }
 
     if(perm==PTE_U){
-        panic("perm should not be zero\n");
+        return -1;
     }
     
     // we not fuck map this 
     memset(mem,0,PGSIZE);
     if(mappages(p->pagetable,addr,PGSIZE,(uint64)mem,perm)!=0){
-        panic("mmap map fail\n");
+        return -1;
     }
 
     ilock(v->f->ip);
     //read file to physical memory
     // fuck mot pgsize
 
-    readi(v->f->ip,1,addr,addr-(uint64)v->addr+v->off,PGSIZE);
+    if(readi(v->f->ip,1,addr,addr-(uint64)v->addr+v->off,PGSIZE)==-1){
+        iunlock(v->f->ip);
+        return -1;
+    }
+
     int s=(addr-(uint64)v->addr)/PGSIZE;
     v->inmemory|=(1<<s);
     //change in_memory
@@ -79,7 +83,7 @@ int  munmapfile(uint64 addr,uint len){
     // we have find the region
     // lenth must be pagealigned
 
-    if(len>MMAPMAXLENTH||len%PGSIZE!=0){
+    if(len==0||len>MMAPMAXLENTH||len%PGSIZE!=0){
       return -1;
     }
 
@@ -98,21 +102,16 @@ int  munmapfile(uint64 addr,uint len){
         }
     }
 
-    if(v==0){
-        return -1;
-    }
-
-
-    //check the args
-    if(len%PGSIZE||len>v->lenth){
+     if(len%PGSIZE||len>v->lenth){
         // lenth error
         return -1;
     }
 
-    //out of range
-    if(addr+len>(uint64)v->addr+v->lenth){
+
+    if(v==0||addr+len>v->addr+v->lenth){
         return -1;
     }
+
     
     // can not handle this situation
     if(addr!=v->addr&&addr+len!=(uint64)v->addr+v->lenth){
@@ -161,9 +160,9 @@ int  munmapfile(uint64 addr,uint len){
 
     if(v->lenth==0){
        fileclose(v->f);
-       p->mapregiontable[i]=0;
        vmafree(v);
        // free the fuck bitbmap
+       p->mapregiontable[i]=0;
        int mask=(1<<(addr-MMAPADDR)/MMAPMAXLENTH);
        p->mmapbitmap|=mask;
     }
