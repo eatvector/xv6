@@ -44,6 +44,8 @@ main(int argc, char *argv[])
     fprintf(2, "usage: grep pattern [file ...]\n");
     exit(1);
   }
+
+  // this is what we want concentrate
   pattern = argv[1];
 
   if(argc <= 2){
