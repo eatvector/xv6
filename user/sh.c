@@ -12,6 +12,11 @@
 #define BACK  5
 
 #define MAXARGS 10
+#define MAXFILENAME 64
+
+int filecommand;
+char commandfile[MAXFILENAME];
+
 
 struct cmd {
   int type;
@@ -74,12 +79,15 @@ runcmd(struct cmd *cmd)
 
   case EXEC:
     ecmd = (struct execcmd*)cmd;
+    //argv[0] is the program name;
     if(ecmd->argv[0] == 0)
       exit(1);
+    // std 0 and 1 may point to pipe
     exec(ecmd->argv[0], ecmd->argv);
     fprintf(2, "exec %s failed\n", ecmd->argv[0]);
     break;
-
+ 
+  //i do not understand what fuck is this
   case REDIR:
     rcmd = (struct redircmd*)cmd;
     // make rcmd->fd point to rcmd->file with mode rcmd->mode
@@ -93,8 +101,10 @@ runcmd(struct cmd *cmd)
 
   case LIST:
     lcmd = (struct listcmd*)cmd;
+    // let kid run the left cmd
     if(fork1() == 0)
       runcmd(lcmd->left);
+    // wait kid to finish run left cmd
     wait(0);
     runcmd(lcmd->right);
     break;
@@ -122,6 +132,7 @@ runcmd(struct cmd *cmd)
     }
     close(p[0]);
     close(p[1]);
+    // wait for its two kid process to exit
     wait(0);
     wait(0);
     break;
@@ -135,16 +146,45 @@ runcmd(struct cmd *cmd)
   exit(0);
 }
 
+
+
+void redirtoconsole(){
+      close(0);
+      if(open("console", O_RDWR)<0){
+        fprintf(2,"shell stdin redir to console fail\n");
+        exit(1);
+    }
+}
+
+
+void redirtofile(char *filename){
+    close(0);
+    if(open(filename,O_RDONLY)!=0){
+        fprintf(2,"shell stdin redir to %s fail\n",filename);
+        exit(1);
+    }
+}
+
+
 int
 getcmd(char *buf, int nbuf)
 {
-  write(2, "$ ", 2);
+  if(!filecommand){
+    write(2, "$ ", 2);
+  }
   memset(buf, 0, nbuf);
   gets(buf, nbuf);
-  if(buf[0] == 0) // EOF
+  //EOF
+  if(buf[0] == 0){
+    if(filecommand){
+       return 1;
+      // now shell will read from console,not console
+    }
     return -1;
+  }
   return 0;
 }
+
 
 int
 main(void)
@@ -160,8 +200,16 @@ main(void)
     }
   }
 
+  // 0 may point to a file
   // Read and run input commands.
   while(getcmd(buf, sizeof(buf)) >= 0){
+    //read file command end,stdin redir to console
+    if(buf[0]==0){
+      filecommand=0;
+      commandfile[0]=0;
+      redirtoconsole();
+      continue;
+    }
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
       // Chdir must be called by the parent, not the child.
       buf[strlen(buf)-1] = 0;  // chop \n
@@ -169,10 +217,29 @@ main(void)
         fprintf(2, "cannot cd %s\n", buf+3);
       continue;
     }
+    // read command from file
+    else if(buf[0]=='.'&&buf[1]==' '){
+      if(filecommand){
+        fprintf(2,"not support such file command");
+        exit(1);
+      }
+      buf[strlen(buf)-1] = 0; 
+      strcpy(commandfile,buf+2);
+      filecommand=1; 
+      redirtofile(commandfile);
+      continue;
+      //next time we will read command from file
+    }
     // if we are child just runcmd
-    if(fork1() == 0)
+    // folk a child to run the cmd
+    if(fork1() == 0){
+      if(filecommand){
+        redirtoconsole();
+      }
       runcmd(parsecmd(buf));
+    }
     wait(0);
+
   }
   exit(0);
 }
@@ -268,6 +335,12 @@ backcmd(struct cmd *subcmd)
 char whitespace[] = " \t\r\n\v";
 char symbols[] = "<|>&;()";
 
+//  a string from *ps to es
+//  make *q point to the first nonwhitespace char in string [*ps,es) or es
+//  *eq point to the world we want to process next,may be a white space(?)
+//  *ps is after *eq, a nonwhitespace char or at es
+//  ret may be symbols char or '+'(>>) or 'a' or 0
+
 int
 gettoken(char **ps, char *es, char **q, char **eq)
 {
@@ -275,8 +348,11 @@ gettoken(char **ps, char *es, char **q, char **eq)
   int ret;
 
   s = *ps;
+  // if is whitespace,just move on
+  // strchr to find *s is in set whitespace,
   while(s < es && strchr(whitespace, *s))
     s++;
+  // s now point to a nonwhitespace char
   if(q)
     *q = s;
   ret = *s;
@@ -289,10 +365,11 @@ gettoken(char **ps, char *es, char **q, char **eq)
   case ';':
   case '&':
   case '<':
-    s++;
+    s++; 
     break;
   case '>':
     s++;
+    // >> ,add something at the end of a file
     if(*s == '>'){
       ret = '+';
       s++;
@@ -300,10 +377,12 @@ gettoken(char **ps, char *es, char **q, char **eq)
     break;
   default:
     ret = 'a';
+    // try to move s point to the next whitespace char or symbols char
     while(s < es && !strchr(whitespace, *s) && !strchr(symbols, *s))
       s++;
     break;
   }
+
   if(eq)
     *eq = s;
 
@@ -313,15 +392,20 @@ gettoken(char **ps, char *es, char **q, char **eq)
   return ret;
 }
 
+
+//  make *ps point to a nonwhitespace char or es
+//  if the first nonwhitespace is in token return true,else return false
 int
 peek(char **ps, char *es, char *toks)
 {
   char *s;
 
   s = *ps;
+  // s now point to a nonwhitespace char
   while(s < es && strchr(whitespace, *s))
     s++;
   *ps = s;
+  // check s point to a token
   return *s && strchr(toks, *s);
 }
 
@@ -370,7 +454,7 @@ parsepipe(char **ps, char *es)
   struct cmd *cmd;
 
   cmd = parseexec(ps, es);
-  if(peek(ps, es, "|")){
+  if(peek(ps, es, "|")){ 
     gettoken(ps, es, 0, 0);
     cmd = pipecmd(cmd, parsepipe(ps, es));
   }
@@ -383,6 +467,7 @@ parseredirs(struct cmd *cmd, char **ps, char *es)
   int tok;
   char *q, *eq;
 
+  // echo "hello world" >1.txt>2.txt will redir to 2.txt not 1,txt
   while(peek(ps, es, "<>")){
     tok = gettoken(ps, es, 0, 0);
     if(gettoken(ps, es, &q, &eq) != 'a')
@@ -434,6 +519,7 @@ parseexec(char **ps, char *es)
 
   argc = 0;
   ret = parseredirs(ret, ps, es);
+  
   while(!peek(ps, es, "|)&;")){
     if((tok=gettoken(ps, es, &q, &eq)) == 0)
       break;
@@ -452,6 +538,7 @@ parseexec(char **ps, char *es)
 }
 
 // NUL-terminate all the counted strings.
+// do some clean work
 struct cmd*
 nulterminate(struct cmd *cmd)
 {

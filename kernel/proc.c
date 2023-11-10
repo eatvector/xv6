@@ -247,6 +247,8 @@ userinit(void)
   p->trapframe->sp = PGSIZE;  // user stack pointer
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
+  // the first process will set it's work dir at /
+  // other progress will fork to set it's work dir at /
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
