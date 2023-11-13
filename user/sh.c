@@ -14,6 +14,39 @@
 #define MAXARGS 10
 #define MAXFILENAME 64
 
+
+#define MAXHISTORY 3
+#define MAXCMDLEN  64
+
+struct historycmds{
+  char cmds[MAXHISTORY][MAXCMDLEN];
+  int num;
+  int pos;
+};
+
+struct historycmds historycmds;
+
+void addcmdtohistorry(char *cmd){
+  if(strlen(cmd)+1>MAXCMDLEN){
+     return;
+  }
+  if(historycmds.num<MAXHISTORY){
+    historycmds.num++;
+  }
+  strcpy(historycmds.cmds[historycmds.pos],cmd);
+  historycmds.pos=(historycmds.pos+1)%MAXHISTORY;
+}
+
+void showhistory(){
+  int num=historycmds.num;
+  int i=historycmds.pos;
+  for(int j=0;j<num;j++){
+    i=(i+MAXHISTORY-1)%MAXHISTORY;
+    printf("%s\n",historycmds.cmds[i]);
+  }
+}
+
+
 int filecommand;
 char commandfile[MAXFILENAME];
 
@@ -139,6 +172,8 @@ runcmd(struct cmd *cmd)
 
   case BACK:
     bcmd = (struct backcmd*)cmd;
+    // kid process can still run,wen father process is exit
+    // we just  folk a child to continue run cmd,and just exit,so the shell do not need to wait
     if(fork1() == 0)
       runcmd(bcmd->cmd);
     break;
@@ -146,9 +181,7 @@ runcmd(struct cmd *cmd)
   exit(0);
 }
 
-
-
-void redirtoconsole(){
+void  stdintoconsole(){
       close(0);
       if(open("console", O_RDWR)<0){
         fprintf(2,"shell stdin redir to console fail\n");
@@ -157,7 +190,7 @@ void redirtoconsole(){
 }
 
 
-void redirtofile(char *filename){
+void stdintofile(char *filename){
     close(0);
     if(open(filename,O_RDONLY)!=0){
         fprintf(2,"shell stdin redir to %s fail\n",filename);
@@ -176,10 +209,6 @@ getcmd(char *buf, int nbuf)
   gets(buf, nbuf);
   //EOF
   if(buf[0] == 0){
-    if(filecommand){
-       return 1;
-      // now shell will read from console,not console
-    }
     return -1;
   }
   return 0;
@@ -204,42 +233,57 @@ main(void)
   // Read and run input commands.
   while(getcmd(buf, sizeof(buf)) >= 0){
     //read file command end,stdin redir to console
+
     if(buf[0]==0){
       filecommand=0;
       commandfile[0]=0;
-      redirtoconsole();
+      stdintoconsole();
       continue;
+    }else{
+      // chop \n
+      buf[strlen(buf)-1] = 0; 
     }
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
       // Chdir must be called by the parent, not the child.
-      buf[strlen(buf)-1] = 0;  // chop \n
-      if(chdir(buf+3) < 0)
+     // buf[strlen(buf)-1] = 0;  // chop \n
+      if(chdir(buf+3) < 0){
         fprintf(2, "cannot cd %s\n", buf+3);
+      }
+        addcmdtohistorry(buf);
       continue;
     }
     // read command from file
     else if(buf[0]=='.'&&buf[1]==' '){
-      if(filecommand){
-        fprintf(2,"not support such file command");
-        exit(1);
+      // fork a new shell to process this
+      addcmdtohistorry(buf);
+      if(fork1()==0){
+        strcpy(commandfile,buf+2);
+        stdintofile(commandfile);
+        filecommand=1; 
+        continue;
       }
-      buf[strlen(buf)-1] = 0; 
-      strcpy(commandfile,buf+2);
-      filecommand=1; 
-      redirtofile(commandfile);
+      wait(0);
       continue;
       //next time we will read command from file
+    }else if(strcmp(buf,"history")==0){
+      addcmdtohistorry(buf);
+      showhistory();
+      continue;
     }
+   
+    addcmdtohistorry(buf);
+
     // if we are child just runcmd
     // folk a child to run the cmd
     if(fork1() == 0){
+      // stdin  may point to file ,we make it point to consloe
       if(filecommand){
-        redirtoconsole();
+        // i am not sure abou this
+        stdintoconsole();
       }
       runcmd(parsecmd(buf));
     }
     wait(0);
-
   }
   exit(0);
 }
@@ -340,7 +384,6 @@ char symbols[] = "<|>&;()";
 //  *eq point to the world we want to process next,may be a white space(?)
 //  *ps is after *eq, a nonwhitespace char or at es
 //  ret may be symbols char or '+'(>>) or 'a' or 0
-
 int
 gettoken(char **ps, char *es, char **q, char **eq)
 {
@@ -525,6 +568,7 @@ parseexec(char **ps, char *es)
       break;
     if(tok != 'a')
       panic("syntax");
+      // not use ps,i do not understand what is eq
     cmd->argv[argc] = q;
     cmd->eargv[argc] = eq;
     argc++;

@@ -12,6 +12,7 @@ int main(int argc,char*argv[]){
            fprintf(2,"Error:sleep fail\n");
            exit(1);
        }
+       printf("sleep end\n");
    }
   exit(0);
 }
