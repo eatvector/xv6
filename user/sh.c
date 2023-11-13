@@ -580,7 +580,6 @@ parseexec(char **ps, char *es)
   cmd->eargv[argc] = 0;
   return ret;
 }
-
 // NUL-terminate all the counted strings.
 // do some clean work
 struct cmd*
