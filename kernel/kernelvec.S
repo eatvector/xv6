@@ -113,6 +113,7 @@ timervec:
 
         # arrange for a supervisor software interrupt
         # after this handler returns.
+        # other core in s-mode will receive supervisor software interrupt,and handler software interrupt?
         li a1, 2
         csrw sip, a1
 

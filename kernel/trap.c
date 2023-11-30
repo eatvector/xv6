@@ -7,6 +7,7 @@
 #include "defs.h"
 
 struct spinlock tickslock;
+// in our setting,ticks is about 1/10s in  qemu
 uint ticks;
 
 extern char trampoline[], uservec[], userret[];
@@ -171,7 +172,7 @@ clockintr()
 
 // check if it's an external interrupt or software interrupt,
 // and handle it.
-// returns 2 if timer interrupt,
+// returns 2 if timer interrupt,(software interrupt)
 // 1 if other device,
 // 0 if not recognized.
 int
@@ -205,6 +206,7 @@ devintr()
     // software interrupt from a machine-mode timer interrupt,
     // forwarded by timervec in kernelvec.S.
 
+   // time passed is judge by cpu0
     if(cpuid() == 0){
       clockintr();
     }
