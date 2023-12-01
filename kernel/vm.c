@@ -25,10 +25,17 @@ kvmmake(void)
   memset(kpgtbl, 0, PGSIZE);
 
   // uart registers
-  kvmmap(kpgtbl, UART0, UART0, PGSIZE, PTE_R | PTE_W);
+  // map UART0 and kpgtbl at once 
+  kvmmap(kpgtbl, UART0, UART0,PGSIZE , PTE_R | PTE_W);
 
+  printf("map success\n");
+
+  //printf("start map kpggtbl\n");
   // virtio mmio disk interface
-  kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+  //kvmmap(kpgtbl, VIRTIO0, VIRTIO0, 0x1000, PTE_R | PTE_W);
+
+
+  //printf("map kpgtbl success\n");
 
   // PLIC
   kvmmap(kpgtbl, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
@@ -63,6 +70,9 @@ kvminithart()
 {
   // wait for any previous writes to the page table memory to finish.
   sfence_vma();
+
+ // printf("kernel pgtable %p\n",kernel_pagetable);
+ // printf("SATP we want to set %p\n",MAKE_SATP(kernel_pagetable));
 
   w_satp(MAKE_SATP(kernel_pagetable));
 
@@ -153,8 +163,10 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   for(;;){
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
-    if(*pte & PTE_V)
+    if(*pte & PTE_V){
+      printf("remap at addr :%p\n",a);
       panic("mappages: remap");
+    }
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
       break;

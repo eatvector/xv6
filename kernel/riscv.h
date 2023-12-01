@@ -197,9 +197,10 @@ w_pmpaddr0(uint64 x)
 }
 
 // use riscv's sv39 page table scheme.
+// 1 refers that pgtable is vaild
 #define SATP_SV39 (8L << 60)
 
-#define MAKE_SATP(pagetable) (SATP_SV39 | (((uint64)pagetable) >> 12))
+#define MAKE_SATP(pagetable) (SATP_SV39 | (((uint64)pagetable) >> 13))
 
 // supervisor address translation and protection;
 // holds the address of the page table.
@@ -332,8 +333,8 @@ typedef uint64 *pagetable_t; // 512 PTEs
 
 #endif // __ASSEMBLER__
 
-#define PGSIZE 4096 // bytes per page
-#define PGSHIFT 12  // bits of offset within a page
+#define PGSIZE (2*4096) // bytes per page
+#define PGSHIFT (12+1)  // bits of offset within a page
 
 #define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1))
 #define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1))
@@ -346,15 +347,15 @@ typedef uint64 *pagetable_t; // 512 PTEs
 #define PTE_A (1L << 6)
 
 // shift a physical address to the right place for a PTE.
-#define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
+#define PA2PTE(pa) ((((uint64)pa) >> PGSHIFT) << 10)
 
-#define PTE2PA(pte) (((pte) >> 10) << 12)
+#define PTE2PA(pte) (((pte) >> 10) << PGSHIFT)
 
 #define PTE_FLAGS(pte) ((pte) & 0x3FF)
 
 // extract the three 9-bit page table indices from a virtual address.
-#define PXMASK          0x1FF // 9 bits
-#define PXSHIFT(level)  (PGSHIFT+(9*(level)))
+#define PXMASK          0x3FF // 10 bits
+#define PXSHIFT(level)  (PGSHIFT+(10*(level)))
 #define PX(level, va) ((((uint64) (va)) >> PXSHIFT(level)) & PXMASK)
 
 // one beyond the highest possible virtual address.
