@@ -49,7 +49,17 @@ exec(char *path, char **argv)
   if((pagetable = proc_pagetable(p)) == 0)
     goto bad;
 
+  uint64 sz0;
+  // a guard page at adress 0,also include in program sz
+  if((sz0=uvmalloc(pagetable,0,PGSIZE,0))==0){
+     goto bad;
+  }
+  sz=sz0;
+  uvmclear(pagetable,0);
+
   // Load program into memory.
+  //int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
+
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
     if(readi(ip, 0, (uint64)&ph, off, sizeof(ph)) != sizeof(ph))
       goto bad;
@@ -112,6 +122,7 @@ exec(char *path, char **argv)
   // arguments to user main(argc, argv)
   // argc is returned via the system call return
   // value, which goes in a0.
+  // sp point to the sp
   p->trapframe->a1 = sp;
 
   // Save program name for debugging.

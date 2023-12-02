@@ -28,11 +28,8 @@ kvmmake(void)
   // map UART0 and kpgtbl at once 
   kvmmap(kpgtbl, UART0, UART0,PGSIZE , PTE_R | PTE_W);
 
-  printf("map success\n");
-
-  //printf("start map kpggtbl\n");
-  // virtio mmio disk interface
-  //kvmmap(kpgtbl, VIRTIO0, VIRTIO0, 0x1000, PTE_R | PTE_W);
+  
+  kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
 
 
   //printf("map kpgtbl success\n");

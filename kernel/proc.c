@@ -260,6 +260,7 @@ userinit(void)
   
   // allocate one user page and copy initcode's instructions
   // and data into it.
+
   uvmfirst(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
 
