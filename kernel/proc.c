@@ -250,6 +250,7 @@ uchar initcode[] = {
 };
 
 // Set up first user process.
+// Progrm initcode  has no stack memory and start from adress 0
 void
 userinit(void)
 {
