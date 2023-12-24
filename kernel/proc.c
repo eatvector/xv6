@@ -492,6 +492,8 @@ sched(void)
 
   if(!holding(&p->lock))
     panic("sched p->lock");
+  //mycpu()->noff==1 means we have turn off interupt
+  //
   if(mycpu()->noff != 1)
     panic("sched locks");
   if(p->state == RUNNING)
@@ -557,6 +559,8 @@ sleep(void *chan, struct spinlock *lk)
   p->chan = chan;
   p->state = SLEEPING;
 
+
+  // when we want to sched,we can only hold the p->lock
   sched();
 
   // Tidy up.

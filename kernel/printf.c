@@ -134,13 +134,16 @@ printfinit(void)
   pr.locking = 1;
 }
 
-
+/*
 void 
 backtrace(void){
   uint64 fp=r_fp();
   while(PGROUNDDOWN(fp)==PGROUNDDOWN(myproc()->kstack)){
     uint64 ra=*((uint64*)(fp-8));
+    //  we just serch table to find where is the function and the function is on which line
+    // 
     printf("%p\n",ra);
     fp=*((uint64*)(fp-16));
   }
 }
+*/

@@ -1,3 +1,6 @@
+// why is like this ? i am not sure
+
+
 // Saved registers for kernel context switches.
 struct context {
   uint64 ra;
@@ -80,7 +83,7 @@ struct trapframe {
 };
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
-
+struct debuginfo;
 
 //Alarm infomation
 struct alarm{
@@ -92,8 +95,6 @@ struct alarm{
    uint64 saved_gprs[31];
    uint64 saved_epc;
 };
-
-
 
 // Per-process state
 struct proc {
@@ -111,6 +112,9 @@ struct proc {
 
   //alarm information
   struct alarm alarm_info;
+
+  //debug information
+   //struct debuginfo  debug_info;
 
   // these are private to the process, so p->lock need not be held.
   uint64 kstack;               // Virtual address of kernel stack

@@ -11,6 +11,8 @@
 #include "kernel/stat.h"
 #include "kernel/param.h"
 
+
+//if a is 0,complier will find the error,else it will do nothing
 #ifndef static_assert
 #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)
 #endif
@@ -20,7 +22,11 @@
 // Disk layout:
 // [ boot block | sb block | log | inode blocks | free bit map | data blocks ]
 
+
+//to map 2000 block,how many bit mao block do we need
 int nbitmap = FSSIZE/(BSIZE*8) + 1;
+
+// to hold 200 indodes ,how many block do we need
 int ninodeblocks = NINODES / IPB + 1;
 int nlog = LOGSIZE;
 int nmeta;    // Number of meta blocks (boot, sb, nlog, inode, bitmap)
@@ -88,11 +94,13 @@ main(int argc, char *argv[])
   fsfd = open(argv[1], O_RDWR|O_CREAT|O_TRUNC, 0666);
   if(fsfd < 0)
     die(argv[1]);
-
+  
   // 1 fs block = 1 disk sector
   nmeta = 2 + nlog + ninodeblocks + nbitmap;
   nblocks = FSSIZE - nmeta;
 
+
+  //initail super block
   sb.magic = FSMAGIC;
   sb.size = xint(FSSIZE);
   sb.nblocks = xint(nblocks);
@@ -107,13 +115,18 @@ main(int argc, char *argv[])
 
   freeblock = nmeta;     // the first free block that we can allocate
 
+  
+  //set the first FSSIZE Blocks to 
   for(i = 0; i < FSSIZE; i++)
     wsect(i, zeroes);
 
+  // write the super block to disk img
   memset(buf, 0, sizeof(buf));
   memmove(buf, &sb, sizeof(sb));
   wsect(1, buf);
 
+
+// the first inode point the root dir
   rootino = ialloc(T_DIR);
   assert(rootino == ROOTINO);
 
@@ -127,11 +140,18 @@ main(int argc, char *argv[])
   strcpy(de.name, "..");
   iappend(rootino, &de, sizeof(de));
 
+
+ 
+
   for(i = 2; i < argc; i++){
     // get rid of "user/"
+   // printf("file to disk %s\n",argv[i]);
     char *shortname;
     if(strncmp(argv[i], "user/", 5) == 0)
       shortname = argv[i] + 5;
+   /* else if(strncmp(argv[i], "kernel/", 7) == 0)
+    
+       shortname=argv[i]+7;*/
     else
       shortname = argv[i];
     
@@ -149,11 +169,13 @@ main(int argc, char *argv[])
 
     inum = ialloc(T_FILE);
 
+    // wite the file dir  to disk image
     bzero(&de, sizeof(de));
     de.inum = xshort(inum);
     strncpy(de.name, shortname, DIRSIZ);
     iappend(rootino, &de, sizeof(de));
 
+   //write the file to disk image
     while((cc = read(fd, buf, sizeof(buf))) > 0)
       iappend(inum, buf, cc);
 
@@ -161,17 +183,21 @@ main(int argc, char *argv[])
   }
 
   // fix size of root inode dir
+  //root dir may contain empty entry
   rinode(rootino, &din);
   off = xint(din.size);
   off = ((off/BSIZE) + 1) * BSIZE;
   din.size = xint(off);
   winode(rootino, &din);
 
+  //write the bitmap
   balloc(freeblock);
 
   exit(0);
 }
 
+
+//write buf(BSIZE) to disk file at sec
 void
 wsect(uint sec, void *buf)
 {
@@ -181,6 +207,9 @@ wsect(uint sec, void *buf)
     die("write");
 }
 
+
+
+//write *ip to inode inum
 void
 winode(uint inum, struct dinode *ip)
 {
@@ -217,6 +246,8 @@ rsect(uint sec, void *buf)
     die("read");
 }
 
+
+//alloc a new inode and write it to disk
 uint
 ialloc(ushort type)
 {
@@ -231,6 +262,8 @@ ialloc(ushort type)
   return inum;
 }
 
+
+//use a new free sec ,and set it used in bitmap
 void
 balloc(int used)
 {
@@ -238,6 +271,7 @@ balloc(int used)
   int i;
 
   printf("balloc: first %d blocks have been allocated\n", used);
+  // bit map only use one block?
   assert(used < BSIZE*8);
   bzero(buf, BSIZE);
   for(i = 0; i < used; i++){
@@ -249,6 +283,13 @@ balloc(int used)
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
+//write xp to file marked by inode inum
+// need to modify this
+// 
+
+
+
+// not change bit map
 void
 iappend(uint inum, void *xp, int n)
 {
@@ -279,8 +320,10 @@ iappend(uint inum, void *xp, int n)
         indirect[fbn - NDIRECT] = xint(freeblock++);
         wsect(xint(din.addrs[NDIRECT]), (char*)indirect);
       }
+      // x is the section no
       x = xint(indirect[fbn-NDIRECT]);
     }
+    //how many bits we can write this time
     n1 = min(n, (fbn + 1) * BSIZE - off);
     rsect(x, buf);
     bcopy(p, buf + off - (fbn * BSIZE), n1);

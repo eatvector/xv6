@@ -80,3 +80,33 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+
+
+//Allocate n pages ,each page have 4096-byte.
+void *
+kallocnpages(uint64 n){
+   struct run *r;
+   struct run *r0;
+   struct run *header;
+   uint64 i=0;
+   acquire(&kmem.lock);
+   r=header=kmem.freelist;
+   for(;i<n;i++){
+    r0 = kmem.freelist;
+    if(r0)
+    kmem.freelist= r0->next;
+    else{
+      r=(struct run *)0;
+      kmem.freelist=header;
+      break;
+    }
+   }
+   release(&kmem.lock);
+   if(r){
+     for(uint64 i=0;i<n;i++){
+         memset((char*)r+i*PGSIZE, 5, PGSIZE); // fill with junk
+     }
+   }
+   return (void *)r;
+}

@@ -19,6 +19,9 @@ int flags2perm(int flags)
     return perm;
 }
 
+
+
+//os init code can not exec,only a process call syscall can do this
 int
 exec(char *path, char **argv)
 {
@@ -68,6 +71,7 @@ exec(char *path, char **argv)
     if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
   }
+
   iunlockput(ip);
   end_op();
   ip = 0;

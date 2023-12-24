@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct shdr;
 
 // bio.c
 void            binit(void);
@@ -62,6 +63,7 @@ void            ramdiskrw(struct buf*);
 // kalloc.c
 void*           kalloc(void);
 void            kfree(void *);
+void * kallocnpages(uint64 n);
 void            kinit(void);
 
 // log.c
@@ -80,7 +82,7 @@ int             pipewrite(struct pipe*, uint64, int);
 void            printf(char*, ...);
 void            panic(char*) __attribute__((noreturn));
 void            printfinit(void);
-void            backtrace(void);
+//void            backtrace(void);
 
 // proc.c
 int             cpuid(void);
@@ -185,6 +187,16 @@ void            plic_complete(int);
 void            virtio_disk_init(void);
 void            virtio_disk_rw(struct buf *, int);
 void            virtio_disk_intr(void);
+
+
+// debug.c
+void  debug_info_load(void);
+void debuginit(void);
+void backtrace(void);
+char * funcname(uint64 );
+char * loadsection( struct inode *,  struct shdr *);
+void unloadsection(char *addr,  struct shdr *);
+
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

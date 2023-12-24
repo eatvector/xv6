@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "elf.h": "c",
+        "types.h": "c",
+        "debug.h": "c",
+        "proc.h": "c",
+        "spinlock.h": "c",
+        "defs.h": "c",
+        "stat.h": "c",
+        "user.h": "c",
+        "fs.h": "c"
+    }
+}
