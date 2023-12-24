@@ -68,6 +68,7 @@ bget(uint dev, uint blockno)
       b->refcnt++;
       release(&bcache.lock);
       acquiresleep(&b->lock);
+      // the process can use this buffer
       return b;
     }
   }

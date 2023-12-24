@@ -1,5 +1,6 @@
 {
     "files.associations": {
+<<<<<<< HEAD
         "elf.h": "c",
         "types.h": "c",
         "debug.h": "c",
@@ -9,5 +10,13 @@
         "stat.h": "c",
         "user.h": "c",
         "fs.h": "c"
+=======
+        "fcntl.h": "c",
+        "*.tcc": "c",
+        "chrono": "c",
+        "string_view": "c",
+        "defs.h": "c",
+        "user.h": "c"
+>>>>>>> fs
     }
 }

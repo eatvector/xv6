@@ -22,3 +22,4 @@
 #define SYS_close  21
 #define SYS_sigalarm 22
 #define SYS_sigreturn 23
+#define SYS_symlink 24

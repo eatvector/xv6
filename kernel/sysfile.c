@@ -130,6 +130,8 @@ sys_link(void)
     return -1;
 
   begin_op();
+
+  //find the inode we want to link to
   if((ip = namei(old)) == 0){
     end_op();
     return -1;
@@ -149,6 +151,7 @@ sys_link(void)
   if((dp = nameiparent(new, name)) == 0)
     goto bad;
   ilock(dp);
+  // must on the same dev
   if(dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0){
     iunlockput(dp);
     goto bad;
@@ -214,15 +217,21 @@ sys_unlink(void)
 
   if(ip->nlink < 1)
     panic("unlink: nlink < 1");
+ 
   if(ip->type == T_DIR && !isdirempty(ip)){
     iunlockput(ip);
     goto bad;
   }
 
+  // clean the dir entry(in memory)
   memset(&de, 0, sizeof(de));
+
   if(writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     panic("unlink: writei");
+
   if(ip->type == T_DIR){
+    // i do not understand this.
+    //ip hold .. ,point to dp
     dp->nlink--;
     iupdate(dp);
   }
@@ -230,6 +239,7 @@ sys_unlink(void)
 
   ip->nlink--;
   iupdate(ip);
+  //may destory ip
   iunlockput(ip);
 
   end_op();
@@ -242,11 +252,15 @@ bad:
   return -1;
 }
 
+
+
+//return a locked ip
 static struct inode*
 create(char *path, short type, short major, short minor)
 {
   struct inode *ip, *dp;
   char name[DIRSIZ];
+
 
   if((dp = nameiparent(path, name)) == 0)
     return 0;
@@ -256,12 +270,16 @@ create(char *path, short type, short major, short minor)
   if((ip = dirlookup(dp, name, 0)) != 0){
     iunlockput(dp);
     ilock(ip);
-    if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
+    // i fuck do the dirty work
+    if((type == T_FILE||type==T_SYMLINK) && (ip->type == T_FILE || ip->type == T_DEVICE||ip->type==T_SYMLINK)){
+      //printf("find this fuck file and just return:%s\n",path);
       return ip;
+    }
     iunlockput(ip);
     return 0;
   }
 
+  //printf("not find try to allocate %s\n",path);
   if((ip = ialloc(dp->dev, type)) == 0){
     iunlockput(dp);
     return 0;
@@ -309,27 +327,69 @@ sys_open(void)
   struct file *f;
   struct inode *ip;
   int n;
-
+   
+ 
   argint(1, &omode);
   if((n = argstr(0, path, MAXPATH)) < 0)
     return -1;
 
+
+ // printf("start open %s\n",path);
   begin_op();
 
   if(omode & O_CREATE){
+    // only T_FILE can be creat
     ip = create(path, T_FILE, 0, 0);
     if(ip == 0){
       end_op();
       return -1;
     }
   } else {
-    if((ip = namei(path)) == 0){
-      end_op();
-      return -1;
+    // change here to recognized the sysmlink
+    int max_depth=omode&O_NOFOLLOW? 1:SYSLINKDEPTH;
+    
+    for(int i=0;i<max_depth;i++){
+
+      //ip is not locked
+      if((ip = namei(path)) == 0){
+        end_op();
+        return -1;
+      }
+
+     
+      ilock(ip);
+
+      if(ip->type == T_DIR){
+        if(i>0){
+          panic("Not implement symlink to dir");
+        }
+        if(omode != O_RDONLY){
+          iunlockput(ip);
+          end_op();
+          return -1;
+        }else{
+          break;
+        }
+      }
+
+      else if(ip->type==T_SYMLINK){
+        if(readi(ip,0,(uint64)path,0,ip->size)!=ip->size){
+          iunlockput(ip);
+          end_op();
+          return -1;
+        }
+        
+      if(!(omode&O_NOFOLLOW)){
+          iunlockput(ip);
+        }
+      }
+
+      else{
+        break;
+      }
     }
-    ilock(ip);
-    if(ip->type == T_DIR && omode != O_RDONLY){
-      iunlockput(ip);
+    
+    if(!(omode&O_NOFOLLOW)&&ip->type==T_SYMLINK){
       end_op();
       return -1;
     }
@@ -364,9 +424,13 @@ sys_open(void)
     itrunc(ip);
   }
 
+  // All calls to iput() must be inside a transaction in
+  // case it has to free the inode.
   iunlock(ip);
   end_op();
 
+
+  //printf("end open\n");
   return fd;
 }
 
@@ -503,3 +567,39 @@ sys_pipe(void)
   }
   return 0;
 }
+
+
+//we should implement this
+// need to modify
+uint64 sys_symlink(void){
+    char target[MAXPATH],linkpath[MAXPATH];
+    struct inode *ip;
+    
+    if(argstr(0, target, MAXPATH) < 0 || argstr(1, linkpath, MAXPATH) < 0){
+      return -1;
+    }
+
+    begin_op();
+   
+
+    ip=create(linkpath,T_SYMLINK,0,0);
+    if(!ip){
+      end_op();
+      return -1;
+    } 
+    int n=strlen(target)+1;// we incluse '/0' here
+    if(writei(ip,0,(uint64)target,0,n)!=n){
+      iunlockput(ip);
+      end_op();
+      return -1;
+    }
+    // we do not want destory it
+    // if we use iunlock ,this will panic
+    // refs how many process hold the ip pointer,nlinks (hard link)
+    //printf("ip info :ref:%d nlinks:%d\n",ip->ref,ip->nlink);
+    iunlockput(ip);
+    
+    end_op();
+    return 0;
+}
+ 

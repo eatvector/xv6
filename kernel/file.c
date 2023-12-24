@@ -94,10 +94,13 @@ filestat(struct file *f, uint64 addr)
     ilock(f->ip);
     stati(f->ip, &st);
     iunlock(f->ip);
-    if(copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0)
+    if(copyout(p->pagetable, addr, (char *)&st, sizeof(st)) < 0){
+      //printf("fail at copy out\n");
       return -1;
+    }
     return 0;
   }
+ // printf("fail at type\n");
   return -1;
 }
 
@@ -158,7 +161,7 @@ filewrite(struct file *f, uint64 addr, int n)
       int n1 = n - i;
       if(n1 > max)
         n1 = max;
-
+   // n1 we want to write,i has wriitten
       begin_op();
       ilock(f->ip);
       if ((r = writei(f->ip, 1, addr + i, f->off, n1)) > 0)

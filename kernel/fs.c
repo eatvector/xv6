@@ -263,8 +263,9 @@ iget(uint dev, uint inum)
   }
 
   // Recycle an inode entry.
-  if(empty == 0)
+  if(empty == 0){
     panic("iget: no inodes");
+  }
 
   ip = empty;
   ip->dev = dev;
@@ -382,9 +383,11 @@ iunlockput(struct inode *ip)
 static uint
 bmap(struct inode *ip, uint bn)
 {
+  // bn:logical block no
   uint addr, *a;
   struct buf *bp;
 
+  // direct block
   if(bn < NDIRECT){
     if((addr = ip->addrs[bn]) == 0){
       addr = balloc(ip->dev);
@@ -396,7 +399,9 @@ bmap(struct inode *ip, uint bn)
   }
   bn -= NDIRECT;
 
-  if(bn < NINDIRECT){
+
+  // singly-indirect block
+  if(bn <NINDIRECT ){
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0){
       addr = balloc(ip->dev);
@@ -416,7 +421,44 @@ bmap(struct inode *ip, uint bn)
     brelse(bp);
     return addr;
   }
+  bn-=NINDIRECT;
 
+  // doubly-indirect block
+  if(bn<NINDIRECT*NINDIRECT){
+
+  if((addr = ip->addrs[NDIRECT+1]) == 0){
+      addr = balloc(ip->dev);
+      if(addr == 0)
+        return 0;
+      ip->addrs[NDIRECT+1] = addr;
+  }
+
+  // read the fucking block(at level 0)
+  bp = bread(ip->dev, addr);
+  a = (uint*)bp->data;
+  if((addr = a[bn/NINDIRECT]) == 0){
+      addr = balloc(ip->dev);
+      if(addr){
+        a[bn/NINDIRECT] = addr;
+        log_write(bp);
+      }
+  }
+  brelse(bp);
+  
+  //read the fucking block(at level 1)
+   bp = bread(ip->dev, addr);
+   a = (uint*)bp->data;
+   if((addr = a[bn%NINDIRECT]) == 0){
+     // now we have alloc the true datablock
+      addr = balloc(ip->dev);
+      if(addr){
+        a[bn%NINDIRECT] = addr;
+        log_write(bp);
+      }
+  }
+  brelse(bp);
+  return addr;
+  }
   panic("bmap: out of range");
 }
 
@@ -425,9 +467,11 @@ bmap(struct inode *ip, uint bn)
 void
 itrunc(struct inode *ip)
 {
-  int i, j;
-  struct buf *bp;
-  uint *a;
+  int i, j,k;
+  struct buf *bp0;
+  struct buf *bp1;
+  uint *a0;
+  uint *a1;
 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){
@@ -437,15 +481,52 @@ itrunc(struct inode *ip)
   }
 
   if(ip->addrs[NDIRECT]){
-    bp = bread(ip->dev, ip->addrs[NDIRECT]);
-    a = (uint*)bp->data;
+    bp0 = bread(ip->dev, ip->addrs[NDIRECT]);
+    a0 = (uint*)bp0->data;
     for(j = 0; j < NINDIRECT; j++){
-      if(a[j])
-        bfree(ip->dev, a[j]);
+      if(a0[j])
+        bfree(ip->dev, a0[j]);
     }
-    brelse(bp);
+    brelse(bp0);
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
+  }
+
+
+ // we have double-indirect block
+
+  if(ip->addrs[NDIRECT+1]){
+    // read the fucking block(at level 0)
+    //printf("multi start\n");
+    bp0 = bread(ip->dev, ip->addrs[NDIRECT+1]);
+    a0 = (uint*)bp0->data;
+
+    for(j=0;j<NINDIRECT;j++){
+
+      //read the fucking block(at level 1)
+      if(a0[j]){
+       bp1=bread(ip->dev,a0[j]);
+       a1=(uint*)bp1->data;
+
+       
+        for(k=0;k<NINDIRECT;k++){
+          // free the datablock
+          if(a1[k]){
+              //printf("free a1k\n");
+              bfree(ip->dev,a1[k]);
+          }
+        }
+       
+       brelse(bp1);
+       //printf("free a0j\n");
+       bfree(ip->dev,a0[j]);
+      }
+    }
+
+    brelse(bp0);
+    bfree(ip->dev,ip->addrs[NDIRECT+1]);
+    ip->addrs[NDIRECT+1]=0;
+   // printf("multi end\n");
   }
 
   ip->size = 0;
@@ -553,7 +634,7 @@ dirlookup(struct inode *dp, char *name, uint *poff)
 {
   uint off, inum;
   struct dirent de;
-
+  // dp id locked by the caller
   if(dp->type != T_DIR)
     panic("dirlookup not DIR");
 
@@ -567,6 +648,7 @@ dirlookup(struct inode *dp, char *name, uint *poff)
       if(poff)
         *poff = off;
       inum = de.inum;
+      // the inode return  hold no locks but ref++;
       return iget(dp->dev, inum);
     }
   }
@@ -654,7 +736,9 @@ namex(char *path, int nameiparent, char *name)
   struct inode *ip, *next;
 
   if(*path == '/')
+  // real path
     ip = iget(ROOTDEV, ROOTINO);
+  // relative path
   else
     ip = idup(myproc()->cwd);
 
