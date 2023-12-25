@@ -36,9 +36,6 @@ entry("getpid");
 entry("sbrk");
 entry("sleep");
 entry("uptime");
-<<<<<<< HEAD
 entry("sigalarm");
 entry("sigreturn");
-=======
 entry("symlink");
->>>>>>> fs

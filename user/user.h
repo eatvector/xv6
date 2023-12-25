@@ -22,12 +22,9 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-<<<<<<< HEAD
 int sigalarm(int ticks, void (*handler)());
 int sigreturn(void);
-=======
 int symlink(const char *target, const char *linkpath);
->>>>>>> fs
 
 // ulib.c
 int stat(const char*, struct stat*);

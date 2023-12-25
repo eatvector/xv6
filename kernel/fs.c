@@ -370,6 +370,45 @@ iunlockput(struct inode *ip)
   iput(ip);
 }
 
+static uint bwalk(struct inode *ip,uint addrtop,uint bn,int level){
+     
+    struct buf*bp;
+    uint addr=addrtop;
+    uint  which,   * a;
+    for(;level>=0;level--){
+      bp = bread(ip->dev, addr);
+      a = (uint*)bp->data;
+
+      // very easy to have bug here
+      which=bn;
+      if(level==1){
+         which/=NINDIRECT;
+         bn-=which*NINDIRECT;
+      }
+      else if(level==2){
+        which/=(NINDIRECT*NINDIRECT);
+        bn-=which*NINDIRECT*NINDIRECT;
+      }
+     
+  
+      if((addr=a[which])== 0){
+        addr = balloc(ip->dev);
+        if(addr){
+          a[which]=addr;
+          log_write(bp);
+        }else{
+          brelse(bp);
+          return 0;
+        }
+      }
+
+      brelse(bp);
+    }
+    return addr;
+}
+
+
+
 // Inode content
 //
 // The content (data) associated with each inode is stored
@@ -384,8 +423,8 @@ static uint
 bmap(struct inode *ip, uint bn)
 {
   // bn:logical block no
-  uint addr, *a;
-  struct buf *bp;
+  uint addr;
+ // struct buf *bp;
 
   // direct block
   if(bn < NDIRECT){
@@ -400,7 +439,7 @@ bmap(struct inode *ip, uint bn)
   bn -= NDIRECT;
 
 
-  // singly-indirect block
+  //indirect block
   if(bn <NINDIRECT ){
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0){
@@ -409,69 +448,72 @@ bmap(struct inode *ip, uint bn)
         return 0;
       ip->addrs[NDIRECT] = addr;
     }
-    bp = bread(ip->dev, addr);
-    a = (uint*)bp->data;
-    if((addr = a[bn]) == 0){
-      addr = balloc(ip->dev);
-      if(addr){
-        a[bn] = addr;
-        log_write(bp);
-      }
-    }
-    brelse(bp);
-    return addr;
+    return bwalk(ip,addr,bn,0);
   }
   bn-=NINDIRECT;
 
   // doubly-indirect block
-  if(bn<NINDIRECT*NINDIRECT){
-
+  if(bn<NDOUBLEINDIRCT){
   if((addr = ip->addrs[NDIRECT+1]) == 0){
       addr = balloc(ip->dev);
       if(addr == 0)
         return 0;
       ip->addrs[NDIRECT+1] = addr;
   }
+   return bwalk(ip,addr,bn,1);
+  }
+  bn-=NDOUBLEINDIRCT;
 
-  // read the fucking block(at level 0)
+  
+
+  //triple-indirect blocks
+  
+  if(bn<NTRIPLEINDIRCT){
+      if((addr = ip->addrs[NDIRECT+2]) == 0){
+        addr = balloc(ip->dev);
+        if(addr == 0)
+          return 0;
+        ip->addrs[NDIRECT+2] = addr;
+      }
+    return bwalk(ip,addr,bn,2);
+  }
+ //out of range
+  return 0;
+}
+
+
+
+static void bfreelevel(struct inode*ip,uint addr,uint level){
+  int i;
+  struct buf *bp;
+  uint *a;
+
   bp = bread(ip->dev, addr);
   a = (uint*)bp->data;
-  if((addr = a[bn/NINDIRECT]) == 0){
-      addr = balloc(ip->dev);
-      if(addr){
-        a[bn/NINDIRECT] = addr;
-        log_write(bp);
-      }
+
+  for(i=0;i<NINDIRECT;i++){
+       if(a[i]){
+         if(level==0)
+           bfree(ip->dev,a[i]);
+          else
+           bfreelevel(ip,a[i],level-1);
+         a[i]=0;
+       }
   }
   brelse(bp);
-  
-  //read the fucking block(at level 1)
-   bp = bread(ip->dev, addr);
-   a = (uint*)bp->data;
-   if((addr = a[bn%NINDIRECT]) == 0){
-     // now we have alloc the true datablock
-      addr = balloc(ip->dev);
-      if(addr){
-        a[bn%NINDIRECT] = addr;
-        log_write(bp);
-      }
-  }
-  brelse(bp);
-  return addr;
-  }
-  panic("bmap: out of range");
+  bfree(ip->dev, addr);
 }
+
+
 
 // Truncate inode (discard contents).
 // Caller must hold ip->lock.
 void
 itrunc(struct inode *ip)
 {
-  int i, j,k;
-  struct buf *bp0;
-  struct buf *bp1;
-  uint *a0;
-  uint *a1;
+
+  
+  int i;
 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){
@@ -480,53 +522,25 @@ itrunc(struct inode *ip)
     }
   }
 
+//free the indirect blocks
   if(ip->addrs[NDIRECT]){
-    bp0 = bread(ip->dev, ip->addrs[NDIRECT]);
-    a0 = (uint*)bp0->data;
-    for(j = 0; j < NINDIRECT; j++){
-      if(a0[j])
-        bfree(ip->dev, a0[j]);
-    }
-    brelse(bp0);
-    bfree(ip->dev, ip->addrs[NDIRECT]);
+    bfreelevel(ip,ip->addrs[NDIRECT],0);
     ip->addrs[NDIRECT] = 0;
   }
 
 
- // we have double-indirect block
-
+ // free the  double-indirect blocks
   if(ip->addrs[NDIRECT+1]){
-    // read the fucking block(at level 0)
-    //printf("multi start\n");
-    bp0 = bread(ip->dev, ip->addrs[NDIRECT+1]);
-    a0 = (uint*)bp0->data;
-
-    for(j=0;j<NINDIRECT;j++){
-
-      //read the fucking block(at level 1)
-      if(a0[j]){
-       bp1=bread(ip->dev,a0[j]);
-       a1=(uint*)bp1->data;
-
-       
-        for(k=0;k<NINDIRECT;k++){
-          // free the datablock
-          if(a1[k]){
-              //printf("free a1k\n");
-              bfree(ip->dev,a1[k]);
-          }
-        }
-       
-       brelse(bp1);
-       //printf("free a0j\n");
-       bfree(ip->dev,a0[j]);
-      }
-    }
-
-    brelse(bp0);
-    bfree(ip->dev,ip->addrs[NDIRECT+1]);
+    bfreelevel(ip,ip->addrs[NDIRECT+1],1);
     ip->addrs[NDIRECT+1]=0;
-   // printf("multi end\n");
+  }
+
+// free the triple-indirect blocks
+
+
+  if(ip->addrs[NDIRECT+2]){
+    bfreelevel(ip,ip->addrs[NDIRECT+2],2);
+      ip->addrs[NDIRECT+2]=0;
   }
 
   ip->size = 0;

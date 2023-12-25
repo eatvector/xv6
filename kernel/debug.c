@@ -21,7 +21,7 @@ void debuginit(){
 void  debug_info_load(){
     struct inode *ip;
     begin_op();
-    if((ip = namei("/call")) == 0){
+    if((ip = namei("/ls")) == 0){
         goto bad;
     }
     ilock(ip);
