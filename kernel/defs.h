@@ -63,9 +63,9 @@ void            ramdiskrw(struct buf*);
 // kalloc.c
 void*           kalloc(void);
 void            kfree(void *);
-/*void * kallocnpages(uint64 n);*/
-int kallocnpages(uint64 *addrs,uint npages);
-void kfreenpages(uint64 *addrs,uint npages);
+void * kallocbigpage();
+void kfreebigpage(void *r);
+
 void            kinit(void);
 
 // log.c
@@ -197,7 +197,6 @@ void debuginit(void);
 void backtrace(void);
 char * funcname(uint64 );
 char * loadsection( struct inode *,  struct shdr *);
-void unloadsection(char *addr,  struct shdr *);
 
 
 // number of elements in fixed-size array

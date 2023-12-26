@@ -14,6 +14,17 @@ void freerange(void *pa_start, void *pa_end);
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
+
+// for now we just implement this,we willhave to implement a kernel memory allocater
+#define  NBIGPAGE  50
+uint64 bigpages[NBIGPAGE];
+uint64 used[NBIGPAGE];
+struct spinlock bigpagelock;
+
+
+
+
+
 struct run {
   struct run *next;
 };
@@ -23,11 +34,26 @@ struct {
   struct run *freelist;
 } kmem;
 
+static void  init_largepages(){
+  initlock(&bigpagelock,"bigpage");
+  for(int i=0;i<NBIGPAGE;i++){
+     for(int j=0;j<MAXNPAGES-1;j++){
+        kmem.freelist=kmem.freelist->next;
+     }
+     bigpages[i]=(uint64)kmem.freelist;
+     if(bigpages[i]==0){
+       panic("bigpage");
+     }
+     used[i]=0;
+  }
+}
+
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
   freerange(end, (void*)PHYSTOP);
+  init_largepages();
 }
 
 void
@@ -82,7 +108,6 @@ kalloc(void)
 }
 
 
-//this code have some bugs
 
 //Allocate n pages ,each page have 4096-byte.
 /*
@@ -113,22 +138,55 @@ kallocnpages(uint64 n){
    return (void *)r;
 }*/
 
-
- int kallocnpages(uint64 *addrs,uint npages){
-      if(npages>MAXNPAGES){
-        return -1;
-      }
-    for(uint  i=0;i<npages;i++){
-      if((addrs[i]=(uint64)kalloc())==0){
-          return -1;
-      }
-    }
-    return 0;
+void * kallocbigpage(){
+  acquire(&bigpagelock);
+  void *r=0;
+  int i=0;
+  for(;i<NBIGPAGE;i++){
+     if(!used[i]){
+         r=(void *)bigpages[i];
+         used[i]=1;
+         break;
+     }
+  }
+  release(&bigpagelock);
+  return r;
 }
 
-void kfreenpages(uint64 *addrs,uint npages){
-   
-   for(uint i=0;i<npages;i++){
-     kfree((void *)addrs[i]);
-   }
+
+void kfreebigpage(void *r){
+     acquire(&bigpagelock);
+     for(int i=0;i<NBIGPAGE;i++){
+        if(bigpages[i]==(uint64)r){
+             used[i]=0;
+             break;
+        }
+     }
+     release(&bigpagelock);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
