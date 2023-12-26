@@ -63,7 +63,9 @@ void            ramdiskrw(struct buf*);
 // kalloc.c
 void*           kalloc(void);
 void            kfree(void *);
-void * kallocnpages(uint64 n);
+/*void * kallocnpages(uint64 n);*/
+int kallocnpages(uint64 *addrs,uint npages);
+void kfreenpages(uint64 *addrs,uint npages);
 void            kinit(void);
 
 // log.c

@@ -4,5 +4,6 @@
 #include "user/user.h"
 int main(void){
     sleep(10);
+    printf("sleep down\n");
     return 0;
 }

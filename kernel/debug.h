@@ -9,10 +9,16 @@ struct funcinfo{
 };
 
 struct debuginfo{
-  struct funcinfo * func;// must be page aligned,do not forget to relaese the memory when process is killed
-  uint64 funcsz;
-  uint64 strtabaddr;     // must be page aligned
-  uint64 strtablen;
+  //struct funcinfo * func;// must be page aligned,do not forget to relaese the memory when process is killed
+  //uint64 funcsz;
+ /* uint64 strtabaddr;     // must be page aligned
+  uint64 strtablen;*/
+ uint64 funcaddrs[MAXNPAGES];
+ uint funcn;
+
+  uint64 strtabaddrs[MAXNPAGES];
+  uint strtabn;
+
   struct  spinlock  lock;
   volatile  int  is_funcinfo_load;
   volatile  int  load;

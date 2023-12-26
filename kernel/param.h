@@ -24,5 +24,6 @@
 #endif
 #endif
 #define MAXPATH      128   // maximum file path name
+#define MAXNPAGES   20//
 
 

@@ -536,8 +536,6 @@ itrunc(struct inode *ip)
   }
 
 // free the triple-indirect blocks
-
-
   if(ip->addrs[NDIRECT+2]){
     bfreelevel(ip,ip->addrs[NDIRECT+2],2);
       ip->addrs[NDIRECT+2]=0;

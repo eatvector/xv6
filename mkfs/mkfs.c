@@ -71,6 +71,114 @@ xint(uint x)
   return y;
 }
 
+int bcompare(char *a,char *b){
+  for(int i=0;i<BSIZE;i++){
+     if(a[i]!=b[i]){
+       return 0;
+     }
+  }
+  return 1;
+}
+
+
+
+#define MIN(a,b)  ((a)>(b)?(b):(a))
+
+void test_kernel(uint kinum){
+
+  int fd=open("kernel/kernel",O_RDONLY);
+  struct dinode din;
+  // read the kernel inode
+  rinode(kinum, &din);
+  uint size=xint(din.size);
+  char block[BSIZE];
+  char qemu_block[BSIZE];
+  uint off=0;
+  uint readn=0;
+
+  //direct block
+  for(int i=0;i<NDIRECT;i++){
+    rsect(xint(din.addrs[i]),qemu_block);
+
+    lseek(fd,off,SEEK_SET);
+    readn=MIN(BSIZE,size-off);
+    memset(block,0,BSIZE);
+    if(read(fd,block,readn)!=readn){
+      printf("read fail\n");
+      return ;
+    }
+
+
+    if(bcompare(block,qemu_block)==0){
+        printf("direct block not match\n");
+        assert(0);
+    }
+    off+=readn;
+    if(off==size){
+      return ;
+    }
+  }
+
+  // indirect block
+  uint indirect[BSIZE/sizeof(uint)];
+  rsect(xint(din.addrs[NDIRECT]),indirect);
+
+  for(int i=0;i<NINDIRECT;i++){
+    rsect(xint(indirect[i]),qemu_block);
+
+    lseek(fd,off,SEEK_SET);
+    readn=MIN(BSIZE,size-off);
+    memset(block,0,BSIZE);
+    if(read(fd,block,readn)!=readn){
+      printf("read fail\n");
+      return ;
+    }
+
+    if(bcompare(block,qemu_block)==0){
+        printf("indirect block not match  %d\n",i);
+       // assert(0);
+       return;
+    }
+    off+=readn;
+     if(off==size){
+      return ;
+    }
+  }
+
+  //double-indirect block
+   rsect(xint(din.addrs[NDIRECT+1]),indirect);
+
+
+   for(int i=0;i<NINDIRECT;i++){
+
+     uint buf[BSIZE/sizeof(uint)];
+     rsect(xint(indirect[i]),buf);
+
+      for(int j=0;j<NINDIRECT;j++){
+        rsect(xint(buf[j]),qemu_block);
+
+        lseek(fd,off,SEEK_SET);
+        readn=MIN(BSIZE,size-off);
+        memset(block,0,BSIZE);
+
+       if(read(fd,block,readn)!=readn){
+          printf("read fail\n");
+          return ;
+        }
+
+       if(bcompare(block,qemu_block)==0){
+          printf("doubleindirect block not match\n");
+         assert(0);
+       }
+        off+=readn;
+        if(off==size){
+          return ;
+        }
+      }
+   }
+
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -79,6 +187,10 @@ main(int argc, char *argv[])
   struct dirent de;
   char buf[BSIZE];
   struct dinode din;
+
+
+  //
+  int test=0;
 
 
   static_assert(sizeof(int) == 4, "Integers must be 4 bytes!");
@@ -141,7 +253,7 @@ main(int argc, char *argv[])
   iappend(rootino, &de, sizeof(de));
 
 
- 
+   
 
   for(i = 2; i < argc; i++){
     // get rid of "user/"
@@ -149,9 +261,10 @@ main(int argc, char *argv[])
     char *shortname;
     if(strncmp(argv[i], "user/", 5) == 0)
       shortname = argv[i] + 5;
-   /* else if(strncmp(argv[i], "kernel/", 7) == 0)
-    
-       shortname=argv[i]+7;*/
+   else if(strncmp(argv[i], "kernel/", 7) == 0){
+        test=1;
+       shortname=argv[i]+7;
+   }
     else
       shortname = argv[i];
     
@@ -179,7 +292,14 @@ main(int argc, char *argv[])
     while((cc = read(fd, buf, sizeof(buf))) > 0)
       iappend(inum, buf, cc);
 
+
     close(fd);
+
+    if(test){
+
+      test_kernel(inum);
+      test=0;
+    }
   }
 
   // fix size of root inode dir
@@ -311,10 +431,11 @@ iappend(uint inum, void *xp, int n)
         din.addrs[fbn] = xint(freeblock++);
       }
       x = xint(din.addrs[fbn]);
-    } else {
+    } else if(fbn<NDIRECT+NINDIRECT){
       if(xint(din.addrs[NDIRECT]) == 0){
         din.addrs[NDIRECT] = xint(freeblock++);
       }
+      //0
       rsect(xint(din.addrs[NDIRECT]), (char*)indirect);
       if(indirect[fbn - NDIRECT] == 0){
         indirect[fbn - NDIRECT] = xint(freeblock++);
@@ -322,6 +443,66 @@ iappend(uint inum, void *xp, int n)
       }
       // x is the section no
       x = xint(indirect[fbn-NDIRECT]);
+    }else if(fbn<NDIRECT+NINDIRECT+NDOUBLEINDIRCT){
+        printf("block\n");
+       // we have some bug here\n
+       //uint bn=fbn-NDIRECT-NINDIRECT;
+       if(xint(din.addrs[NDIRECT+1])==0){
+          din.addrs[NDIRECT+1] = xint(freeblock++);
+       }
+
+        uint bn=fbn-NDIRECT-NINDIRECT;
+      //1
+        rsect(xint(din.addrs[NDIRECT+1]), (char*)indirect);
+        uint addr0;
+        uint which=bn/NINDIRECT;
+
+       if((addr0=indirect[which])==0){
+         addr0=indirect[which]=xint(freeblock++);
+         wsect(xint(din.addrs[NDIRECT+1]), (char*)indirect);
+       }
+       //0
+
+       rsect(xint(addr0), (char*)indirect);
+        which=bn%NINDIRECT;
+       if((x=indirect[which])==0){
+         x=indirect[which]=xint(freeblock++);
+         wsect(xint(addr0), (char*)indirect);
+       }
+
+    }else{
+      // should not reach here
+        uint bn=fbn-NDIRECT-NINDIRECT-NDOUBLEINDIRCT;
+         if(xint(din.addrs[NDIRECT+2])==0){
+          din.addrs[NDIRECT+2] = xint(freeblock++);
+       }
+       //2
+        rsect(xint(din.addrs[NDIRECT+2]), (char*)indirect);
+        uint addr1;
+        uint which=bn/(NINDIRECT*NINDIRECT);
+   
+        if((addr1=indirect[which])==0){
+         addr1=indirect[which]=xint(freeblock++);
+         wsect(xint(din.addrs[NDIRECT+2]), (char*)indirect);
+       }
+
+       //1
+        rsect(xint(addr1), (char*)indirect);
+        uint addr0;
+        uint bnn=bn-which*NINDIRECT*NINDIRECT;
+        which=(bnn)/NINDIRECT;
+        if((addr0=indirect[which])==0){
+          addr0=indirect[which]=xint(freeblock++);
+          wsect(xint(addr1), (char*)indirect);
+        }
+
+        //0
+         rsect(xint(addr0), (char*)indirect);
+         which=(bnn)%NINDIRECT;
+          if((x=indirect[which])==0){
+            x=indirect[which]=xint(freeblock++);
+            wsect(xint(addr0), (char*)indirect);
+        }
     }
     //how many bits we can write this time
     n1 = min(n, (fbn + 1) * BSIZE - off);

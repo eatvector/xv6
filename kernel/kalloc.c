@@ -82,8 +82,10 @@ kalloc(void)
 }
 
 
+//this code have some bugs
 
 //Allocate n pages ,each page have 4096-byte.
+/*
 void *
 kallocnpages(uint64 n){
    struct run *r;
@@ -109,4 +111,24 @@ kallocnpages(uint64 n){
      }
    }
    return (void *)r;
+}*/
+
+
+ int kallocnpages(uint64 *addrs,uint npages){
+      if(npages>MAXNPAGES){
+        return -1;
+      }
+    for(uint  i=0;i<npages;i++){
+      if((addrs[i]=(uint64)kalloc())==0){
+          return -1;
+      }
+    }
+    return 0;
+}
+
+void kfreenpages(uint64 *addrs,uint npages){
+   
+   for(uint i=0;i<npages;i++){
+     kfree((void *)addrs[i]);
+   }
 }

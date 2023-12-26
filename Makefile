@@ -221,6 +221,7 @@ UPROGS=\
 	$U/_backtracetest\
 	$U/_btforktest\
 	$U/_symlinktest\
+	$U/_bigbigfiletest\
 	
 
 
@@ -294,8 +295,8 @@ ifeq ($(LAB),util)
 endif
 
 
-fs.img: mkfs/mkfs README   $(UEXTRA) $(UPROGS)
-	mkfs/mkfs fs.img README  $(UEXTRA) $(UPROGS)
+fs.img: mkfs/mkfs README  kernel/kernel $(UEXTRA) $(UPROGS)
+	mkfs/mkfs fs.img README  kernel/kernel $(UEXTRA) $(UPROGS)
 
 -include kernel/*.d user/*.d
 

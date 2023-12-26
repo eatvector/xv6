@@ -13,15 +13,22 @@ static struct debuginfo  debug_info;
 ///static int load=0;
 
 
+
+
+void print_tarpframe(){
+    printf(" trapfame n is %d\n",myproc()->trapframe->a0);
+}
+
 void debuginit(){
     initlock(&debug_info.lock,"debug");
 }
 
 //all the disk operation need use  
 void  debug_info_load(){
+    print_tarpframe();
     struct inode *ip;
     begin_op();
-    if((ip = namei("/ls")) == 0){
+    if((ip = namei("/kernel")) == 0){
         goto bad;
     }
     ilock(ip);
@@ -75,28 +82,52 @@ void  debug_info_load(){
     //load the strtab to memory
     //fill in infromation
 
-    char *strtab;
-    if( (strtab=loadsection(ip,&str_shdr)) ==0){
+     printf("before loadsec\n");
+     print_tarpframe();
+    int strtabn;
+    uint64 strtab_addrs[MAXNPAGES];
+    if( (strtabn=loadsection(ip,&str_shdr,strtab_addrs)) ==0){
       goto bad;
     }
 
-    char *symtab;
-    if((symtab=loadsection(ip,&sym_shdr))==0){
+    printf("middle  loadsec\n");
+     print_tarpframe();
+  
+    uint64 symtabn;
+    uint64 symtab_addrs[MAXNPAGES];
+    if((symtabn=loadsection(ip,&sym_shdr,symtab_addrs))==0){
       goto bad;
     }
+     printf("after load sec\n");
+     print_tarpframe();
 
-    debug_info.strtabaddr=(uint64)strtab;
+      
+     memmove(strtab_addrs,debug_info.strtabaddrs,sizeof(strtab_addrs));
+     debug_info.strtabn=strtabn;
+     
 
 
-    struct sym *p=(struct sym *)symtab;
+    //struct sym *p=(struct sym *)symtab;
+  
     uint64 nsym=sym_shdr.sh_size/sizeof(struct sym);
     uint64 npage=(PGROUNDUP(nsym*sizeof(struct funcinfo))/PGSIZE);
-    if((debug_info.func=kallocnpages(npage))==0){
+
+    uint funcn;
+    uint64 funcaddrs[MAXNPAGES];
+
+    if((funcn=kallocnpages( funcaddrs,npage))==0){
       goto bad; 
     }
 
+    memmove(debug_info.funcaddrs,funcaddrs,sizeof(funcaddrs));
+    debug_info.funcn=funcn;
+
+
+    uint nsymperpage=PGSIZE/sizeof(struct sym);
+    
     uint64 j=0;
     for(uint64 i=0;i<nsym;i++){
+        
       // symbol is a function
        if(ST_TYPE(p->st_info)==0x2){
            debug_info.func[j].funcname=debug_info.strtabaddr+p->st_name;
@@ -104,7 +135,7 @@ void  debug_info_load(){
            debug_info.func[j].kfuncend=p->st_value+p->st_size;
            j++;
        }
-       p++;
+       
     }
 
     debug_info.funcsz=j;
@@ -112,6 +143,7 @@ void  debug_info_load(){
     unloadsection(symtab,&sym_shdr);
     iunlockput(ip);
     end_op();
+    print_tarpframe();
     return ;
 
     bad:
@@ -123,38 +155,35 @@ void  debug_info_load(){
     panic("Kernel load debug information fail\n");
 }
 
-char* loadsection( struct inode *ip,  struct shdr *shdr){
 
-   char *section_in_memory=(char *)0;
-   uint64 npages=   PGROUNDUP ((*shdr).sh_size)/PGSIZE;
-   char *addr;
-   if((addr=kallocnpages(npages))==(char *)0){
-     return (char *)0;
+int loadsection( struct inode *ip,  struct shdr *shdr,uint64 *addrs){
+
+   //char *section_in_memory=(char *)0;
+   uint npages=   (PGROUNDUP ((*shdr).sh_size))/PGSIZE;
+   //char *addr;
+   //uint64 addrs[MAXNPAGES];
+   if(kallocnpages(addrs,npages)==-1){
+       return  0;
    }
-    
-    uint64 n;
-   uint64 off=(*shdr).sh_offset;
-    uint64 dn;
 
+    uint64 n;
+    uint64 off=(*shdr).sh_offset;
+    uint64 dn;
+    int i=0;
     for(n=0;n<(*shdr).sh_size;n+=dn,off+=dn){
       uint64 left=(*shdr).sh_size-n;
       dn=left>PGSIZE ?PGSIZE:left;
-      if(n==0){
-       section_in_memory=addr;
-      }
-     if(readi(ip,0,(uint64)addr,off,dn)!=dn){
-       return (char *)0;
+     if(readi(ip,0,addrs[i++],off,dn)!=dn){
+       return 0;
      }
     }
-    return section_in_memory;
+    return npages;
 }
 
-//the section must be load in memory from addr
-void unloadsection(char *addr,  struct shdr *shdr){
+
+void unloadsection(char *addr,  struct shdr *shdr,uint64 *addrs){
     uint64 npages=   PGROUNDUP ((*shdr).sh_size)/PGSIZE;
-    for(uint64 i=0;i<npages;i++){
-      kfree(addr+i*PGSIZE);
-    }
+    kfreenpages(addrs,npages);
 }
 
 // kaadr->funcname
