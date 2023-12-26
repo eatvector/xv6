@@ -112,6 +112,7 @@ void  debug_info_load(){
        p++;
     }
 
+
     debug_info.funcsz=j;
 
     //unloadsection(symtab,&sym_shdr);
@@ -153,7 +154,7 @@ char* loadsection( struct inode *ip,  struct shdr *shdr){
       if(n==0){
        section_in_memory=addr;
       }
-     if(readi(ip,0,(uint64)addr,off,dn)!=dn){
+     if(readi(ip,0,(uint64)(addr+n),off,dn)!=dn){
        return (char *)0;
      }
     }
@@ -181,7 +182,7 @@ void
 backtrace(void){
     // the one who can get load will load the kernel information
    // printf("Start back trace\n");
-   printf("........................start\n");
+  // printf("........................start\n");
     int load=0;
     if(!debug_info.load){
         acquire(&debug_info.lock);
@@ -217,10 +218,26 @@ backtrace(void){
  
     while(!debug_info.is_funcinfo_load){};
  
-    for(int i=0;i<debug_info.funcsz;i++){
-        printf("func name:%s\n",funcname(debug_info.func[i].kfuncaddr));
+   /*for(int i=0;i<debug_info.funcsz;i++){
+        printf("func name:%s addr:%p\n",funcname(debug_info.func[i].kfuncaddr),debug_info.func[i].kfuncaddr);
+    }*/
+   uint64 fp=r_fp();
+    while(PGROUNDDOWN(fp)==PGROUNDDOWN(myproc()->kstack)){
+    uint64 ra=*((uint64*)(fp-8));
+    //  we just serch table to find where is the function and the function is on which line
+    char *s=funcname(ra);
+    if(ra){
+        printf("%s\n",s);
+    }else{
+        // some wrong
+        return ;
     }
+    fp=*((uint64*)(fp-16));
+  }
+  // printf("kernel test function_name %s\n",funcname(0x1c));
+  // may doing while here\n\n
+
   // printf("Start back trace  end\n");
-   printf("........................end\n");
+ //  printf("........................end\n");
 
 }
