@@ -49,8 +49,15 @@ exec(char *path, char **argv)
   if(elf.magic != ELF_MAGIC)
     goto bad;
 
+  // try to exec kernel
+  if(elf.entry==0x80000000)
+     goto bad;
+
   if((pagetable = proc_pagetable(p)) == 0)
     goto bad;
+
+  
+
 
   // Load program into memory.
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
