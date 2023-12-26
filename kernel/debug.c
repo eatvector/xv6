@@ -180,9 +180,6 @@ char * funcname(uint64 kaddr){
 
 void 
 backtrace(void){
-    // the one who can get load will load the kernel information
-   // printf("Start back trace\n");
-  // printf("........................start\n");
     int load=0;
     if(!debug_info.load){
         acquire(&debug_info.lock);
@@ -199,28 +196,9 @@ backtrace(void){
         debug_info.is_funcinfo_load=1;
     }
 
- /* uint64 fp=r_fp();
-  while(PGROUNDDOWN(fp)==PGROUNDDOWN(myproc()->kstack)){
-    uint64 ra=*((uint64*)(fp-8));
-    //  we just serch table to find where is the function and the function is on which line
-    char *s=funcname(ra);
-    if(ra){
-        printf("%s\n",s);
-    }else{
-        // some wrong
-        return ;
-    }
-    //printf("%p\n",ra);
-    fp=*((uint64*)(fp-16));
-  }*/
-  // printf("kernel test function_name %s\n",funcname(0x1c));
-  // may doing while here\n\n
- 
     while(!debug_info.is_funcinfo_load){};
  
-   /*for(int i=0;i<debug_info.funcsz;i++){
-        printf("func name:%s addr:%p\n",funcname(debug_info.func[i].kfuncaddr),debug_info.func[i].kfuncaddr);
-    }*/
+  
    uint64 fp=r_fp();
     while(PGROUNDDOWN(fp)==PGROUNDDOWN(myproc()->kstack)){
     uint64 ra=*((uint64*)(fp-8));
@@ -234,10 +212,5 @@ backtrace(void){
     }
     fp=*((uint64*)(fp-16));
   }
-  // printf("kernel test function_name %s\n",funcname(0x1c));
-  // may doing while here\n\n
-
-  // printf("Start back trace  end\n");
- //  printf("........................end\n");
-
+ 
 }
