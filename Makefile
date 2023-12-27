@@ -197,6 +197,7 @@ UPROGS=\
 	$U/_find\
 	$U/_xargs\
 	$U/_source\
+	$U/_lazytest\
 
 
 
