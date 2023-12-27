@@ -193,7 +193,7 @@ void            virtio_disk_intr(void);
 
 // debug.c
 void  debug_info_load(void);
-void debuginit(void);
+//void debuginit(void);
 void backtrace(void);
 char * funcname(uint64 );
 char * loadsection( struct inode *,  struct shdr *);

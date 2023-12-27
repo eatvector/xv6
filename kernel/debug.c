@@ -12,10 +12,10 @@
 static struct debuginfo  debug_info;
 ///static int load=0;
 
-
+/*
 void debuginit(){
-    initlock(&debug_info.lock,"debug");
-}
+   // initlock(&debug_info.lock,"debug");
+}*/
 
 //all the disk operation need use  
 void  debug_info_load(){
@@ -180,6 +180,7 @@ char * funcname(uint64 kaddr){
 
 void 
 backtrace(void){
+    /*
     int load=0;
     if(!debug_info.load){
         acquire(&debug_info.lock);
@@ -196,7 +197,7 @@ backtrace(void){
         debug_info.is_funcinfo_load=1;
     }
 
-    while(!debug_info.is_funcinfo_load){};
+    while(!debug_info.is_funcinfo_load){};*/
  
   
    uint64 fp=r_fp();

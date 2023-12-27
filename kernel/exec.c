@@ -7,6 +7,7 @@
 #include "defs.h"
 #include "elf.h"
 
+
 static int loadseg(pde_t *, uint64, struct inode *, uint, uint);
 
 int flags2perm(int flags)
@@ -40,8 +41,12 @@ exec(char *path, char **argv)
     end_op();
     return -1;
   }
+
+  //printf("exec ip :%d",p->cwd->addrs[12]);
   ilock(ip);
 
+
+  
   // Check ELF header
   if(readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
     goto bad;

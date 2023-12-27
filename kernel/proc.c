@@ -255,6 +255,8 @@ userinit(void)
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
 
+ // if(p->cwd->addrs)
+
   p->state = RUNNABLE;
 
   release(&p->lock);
@@ -533,6 +535,8 @@ forkret(void)
     // be run from main().
     first = 0;
     fsinit(ROOTDEV);
+    // do something
+    debug_info_load();
   }
 
   usertrapret();

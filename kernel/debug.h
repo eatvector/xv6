@@ -11,7 +11,7 @@ struct debuginfo{
   uint64 funcsz;
   uint64 strtabaddr;     // must be page aligned
   uint64 strtablen;
-  struct  spinlock  lock;
-  volatile  int  is_funcinfo_load;
-  volatile  int  load;
+  //struct  spinlock  lock;
+ // volatile  int  is_funcinfo_load;
+  //volatile  int  load;
 };

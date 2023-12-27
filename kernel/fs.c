@@ -423,18 +423,19 @@ static uint
 bmap(struct inode *ip, uint bn)
 {
   // bn:logical block no
-  uint addr;
+  uint addr=0;
  // struct buf *bp;
-
+   //int original=ip->addrs[12];
   // direct block
   if(bn < NDIRECT){
     if((addr = ip->addrs[bn]) == 0){
       addr = balloc(ip->dev);
-      if(addr == 0)
-        return 0;
+      if(addr == 0){
+        goto DONE;
+      }
       ip->addrs[bn] = addr;
     }
-    return addr;
+     goto DONE;
   }
   bn -= NDIRECT;
 
@@ -445,10 +446,11 @@ bmap(struct inode *ip, uint bn)
     if((addr = ip->addrs[NDIRECT]) == 0){
       addr = balloc(ip->dev);
       if(addr == 0)
-        return 0;
+        goto DONE;
       ip->addrs[NDIRECT] = addr;
     }
-    return bwalk(ip,addr,bn,0);
+    addr= bwalk(ip,addr,bn,0);
+    goto DONE;
   }
   bn-=NINDIRECT;
 
@@ -457,10 +459,11 @@ bmap(struct inode *ip, uint bn)
   if((addr = ip->addrs[NDIRECT+1]) == 0){
       addr = balloc(ip->dev);
       if(addr == 0)
-        return 0;
+       goto DONE;
       ip->addrs[NDIRECT+1] = addr;
   }
-   return bwalk(ip,addr,bn,1);
+     addr=bwalk(ip,addr,bn,1);
+     goto DONE;
   }
   bn-=NDOUBLEINDIRCT;
 
@@ -469,21 +472,30 @@ bmap(struct inode *ip, uint bn)
   //triple-indirect blocks
   
   if(bn<NTRIPLEINDIRCT){
+    panic("not a big file\n");
       if((addr = ip->addrs[NDIRECT+2]) == 0){
         addr = balloc(ip->dev);
         if(addr == 0)
-          return 0;
+         goto DONE;
         ip->addrs[NDIRECT+2] = addr;
       }
-    return bwalk(ip,addr,bn,2);
+       addr=bwalk(ip,addr,bn,2);
+       goto DONE;
   }
  //out of range
-  return 0;
+ 
+
+
+  DONE:
+  
+  return addr;
 }
 
 
-
+//free block fail
 static void bfreelevel(struct inode*ip,uint addr,uint level){
+ 
+
   int i;
   struct buf *bp;
   uint *a;
@@ -502,6 +514,8 @@ static void bfreelevel(struct inode*ip,uint addr,uint level){
   }
   brelse(bp);
   bfree(ip->dev, addr);
+
+ 
 }
 
 
@@ -567,6 +581,7 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
   uint tot, m;
   struct buf *bp;
 
+ 
   if(off > ip->size || off + n < off)
     return 0;
   if(off + n > ip->size)
@@ -606,6 +621,7 @@ writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
   if(off + n > MAXFILE*BSIZE)
     return -1;
 
+  
   for(tot=0; tot<n; tot+=m, off+=m, src+=m){
     uint addr = bmap(ip, off/BSIZE);
     if(addr == 0)
@@ -649,6 +665,11 @@ dirlookup(struct inode *dp, char *name, uint *poff)
   // dp id locked by the caller
   if(dp->type != T_DIR)
     panic("dirlookup not DIR");
+
+/*
+  if(dp->addrs[12]){
+    panic("root panic");
+  }*/
 
   for(off = 0; off < dp->size; off += sizeof(de)){
     if(readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
@@ -750,7 +771,7 @@ namex(char *path, int nameiparent, char *name)
   if(*path == '/')
   // real path
     ip = iget(ROOTDEV, ROOTINO);
-  // relative path
+  //relative path
   else
     ip = idup(myproc()->cwd);
 

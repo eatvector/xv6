@@ -373,6 +373,9 @@ sys_open(void)
       }
 
       else if(ip->type==T_SYMLINK){
+       if(ip->addrs[12]!=0){
+         panic(" should use trible blocks\n");
+       }
         if(readi(ip,0,(uint64)path,0,ip->size)!=ip->size){
           iunlockput(ip);
           end_op();
@@ -525,8 +528,11 @@ sys_exec(void)
       goto bad;
   }
 
+  
+
   int ret = exec(path, argv);
 
+  
   for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
     kfree(argv[i]);
 

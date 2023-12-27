@@ -313,6 +313,12 @@ main(int argc, char *argv[])
   //write the bitmap
   balloc(freeblock);
 
+  //if(rootino.addrs)
+   rinode(rootino, &din);
+  if(din.addrs[12]){
+    assert(0);
+  }
+
   exit(0);
 }
 
@@ -472,6 +478,7 @@ iappend(uint inum, void *xp, int n)
 
     }else{
       // should not reach here
+        assert(0);
         uint bn=fbn-NDIRECT-NINDIRECT-NDOUBLEINDIRCT;
          if(xint(din.addrs[NDIRECT+2])==0){
           din.addrs[NDIRECT+2] = xint(freeblock++);
