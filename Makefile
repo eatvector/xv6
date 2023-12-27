@@ -319,7 +319,7 @@ ifndef CPUS
 CPUS := 3
 endif
 ifeq ($(LAB),fs)
-CPUS := 1
+CPUS := 3
 endif
 
 FWDPORT = $(shell expr `id -u` % 5000 + 25999)

@@ -19,7 +19,9 @@ static void cleanup(void);
 int
 main(int argc, char *argv[])
 {
+
   cleanup();
+  printf("clean up down\n");
   testsymlink();
   concur();
   exit(failed);
@@ -122,6 +124,8 @@ testsymlink(void)
   if(r) fail("Failed to link 3->4");
 
   close(fd1);
+
+  // when close fd2 cause a kernel panic
   close(fd2);
 
   fd1 = open("/testsymlink/4", O_CREATE | O_RDWR);
