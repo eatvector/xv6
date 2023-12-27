@@ -21,10 +21,6 @@ uint64 bigpages[NBIGPAGE];
 uint64 used[NBIGPAGE];
 struct spinlock bigpagelock;
 
-
-
-
-
 struct run {
   struct run *next;
 };
