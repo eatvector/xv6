@@ -87,6 +87,12 @@ exec(char *path, char **argv)
   sp = sz;
   stackbase = sp - PGSIZE;
 
+
+  // heap vma
+  p->heapvma.addr=p->heapvma.end=sp;
+
+
+
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)

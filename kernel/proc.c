@@ -305,6 +305,9 @@ fork(void)
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
+  // copy the heap vma
+   np->heapvma=p->heapvma;
+
   //printf("\nfork oldp name:%s trapframe %p newp name:%s trapframe %p\n",p->name,p->trapframe,np->name,np->trapframe);
 
   // Cause fork to return 0 in the child.

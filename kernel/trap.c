@@ -68,15 +68,34 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  }  else if(r_scause()==15||r_scause==13){
+  }  else if(r_scause()==15||r_scause()==13){
     // we have a page fault
+    // page fault handler
 
     // whether is cow/lazy allocation/mmap
-
+ 
     uint64 va=r_stval();
 
+    printf("handler pgfault\n");
+
+    //here we have some bugs
     //check if is lazy allocation
-    
+    if(va>=p->heapvma.addr&&va< p->heapvma.end){
+         // load the page
+         uint64 a=PGROUNDDOWN(va);
+         char *mem=kalloc();
+         if(mem==0){
+            setkilled(p);
+         }
+         memset(mem, 0, PGSIZE);
+         if(mappages(p->pagetable, a, PGSIZE, (uint64)mem, PTE_R|PTE_U|PTE_W) != 0){
+            kfree(mem);
+            setkilled(p);
+          }
+    }else{
+       // need to modify  here.
+        setkilled(p);
+    }
     //check if is mmap
 
 

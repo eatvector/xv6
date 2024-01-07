@@ -42,19 +42,29 @@ sys_sbrk(void)
   int n;
 
   argint(0, &n);
-  addr = myproc()->sz;
-
+  struct proc *p=myproc();
+  
+  addr = p->sz;
+ uint64 newsz=p->sz+n;
   /* if(growproc(n) < 0)
     return -1;*/
   
   // change the size of the process and check to return addr or -1.
   if(n>0){
-    
-
+      if(newsz>MAXSZ){
+        return -1;
+      }
   } else if(n<0){
-
-
+    // we need to free some memory,but it may not be alloc before.
+    // return new  sz or just panic
+     if(newsz>p->heapvma.addr){
+      // free the memory
+       uvmdealloc(p->pagetable, p->sz, newsz);
+     }else if(newsz<p->heapvma.addr){
+       return -1;
+     }
   }
+  p->heapvma.end= p->sz=newsz;
   return addr;
 }
 
