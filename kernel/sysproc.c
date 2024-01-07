@@ -43,8 +43,18 @@ sys_sbrk(void)
 
   argint(0, &n);
   addr = myproc()->sz;
-  if(growproc(n) < 0)
-    return -1;
+
+  /* if(growproc(n) < 0)
+    return -1;*/
+  
+  // change the size of the process and check to return addr or -1.
+  if(n>0){
+    
+
+  } else if(n<0){
+
+
+  }
   return addr;
 }
 

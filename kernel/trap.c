@@ -43,6 +43,7 @@ usertrap(void)
 
   // send interrupts and exceptions to kerneltrap(),
   // since we're now in the kernel.
+  // the stvec point to uservec before.
   w_stvec((uint64)kernelvec);
 
   struct proc *p = myproc();
@@ -67,8 +68,21 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  }  else if(r_scause()==15){
+  }  else if(r_scause()==15||r_scause==13){
+    // we have a page fault
+
+    // whether is cow/lazy allocation/mmap
+
     uint64 va=r_stval();
+
+    //check if is lazy allocation
+    
+    //check if is mmap
+
+
+    //page in and page out
+
+   // must set at end
     if(uvmcow(p->pagetable,va)!=0){
       //printf("fuvk error\n");
       setkilled(p);
