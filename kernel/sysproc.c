@@ -55,12 +55,13 @@ sys_sbrk(void)
     return -1;*/
   
   // change the size of the process and check to return addr or -1.
-  if(n>0){
+  if(n>=0){
       if(newsz>MAXSZ){
         return -1;
       }
+       p->sz=p->heapvma.end=newsz;
    //  printf("new size %p  NEWSZ %p\n",newsz,MAXSZ);
-  } else if(n<0){
+  } else {
     // we need to free some memory,but it may not be alloc before.
     // return new  sz or just panic
      printf("decrease the memory   new size:%d",newsz);

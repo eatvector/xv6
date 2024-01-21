@@ -2549,6 +2549,7 @@ sbrklast(char *s)
 void
 sbrk8000(char *s)
 {
+  printf("start sbrk 8000");
   sbrk(0x80000004);
   volatile char *top = sbrk(0);
   *(top-1) = *(top-1) + 1;
