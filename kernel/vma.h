@@ -4,10 +4,13 @@
 
 struct vma{
     // start adress
-    uint64 addr;
+    uint64 begin;
     //end  adress
     uint64 end;
 };
+
+
+
 
 
 

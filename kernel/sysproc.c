@@ -35,6 +35,7 @@ sys_wait(void)
   return wait(p);
 }
 
+
 uint64
 sys_sbrk(void)
 {
@@ -43,9 +44,13 @@ sys_sbrk(void)
 
   argint(0, &n);
   struct proc *p=myproc();
-  
+
+
   addr = p->sz;
- uint64 newsz=p->sz+n;
+  uint64 newsz=p->sz+n;
+
+ // printf("sbrk call  n is  %x\n ",n);
+
   /* if(growproc(n) < 0)
     return -1;*/
   
@@ -54,17 +59,21 @@ sys_sbrk(void)
       if(newsz>MAXSZ){
         return -1;
       }
+   //  printf("new size %p  NEWSZ %p\n",newsz,MAXSZ);
   } else if(n<0){
     // we need to free some memory,but it may not be alloc before.
     // return new  sz or just panic
-     if(newsz>p->heapvma.addr){
+     printf("decrease the memory   new size:%d",newsz);
+     if(newsz>=p->heapvma.begin){
       // free the memory
        uvmdealloc(p->pagetable, p->sz, newsz);
-     }else if(newsz<p->heapvma.addr){
+     }else{
        return -1;
      }
   }
-  p->heapvma.end= p->sz=newsz;
+ // printf("heap range :%p   to %p\n",)
+  p->sz=p->heapvma.end=newsz;
+ //printf("heap range :%p   to %p\n",p->heapvma.begin,p->heapvma.end);
   return addr;
 }
 

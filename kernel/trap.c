@@ -76,35 +76,35 @@ usertrap(void)
  
     uint64 va=r_stval();
 
-    printf("handler pgfault\n");
+  //  printf("handler pgfault at va %p\n",va);
 
     //here we have some bugs
     //check if is lazy allocation
-    if(va>=p->heapvma.addr&&va< p->heapvma.end){
-         // load the page
-         uint64 a=PGROUNDDOWN(va);
-         char *mem=kalloc();
-         if(mem==0){
-            setkilled(p);
-         }
-         memset(mem, 0, PGSIZE);
-         if(mappages(p->pagetable, a, PGSIZE, (uint64)mem, PTE_R|PTE_U|PTE_W) != 0){
-            kfree(mem);
-            setkilled(p);
-          }
-    }else{
+  
+    // have some bug here.
+    // need to modify here.
+    if(va>=p->heapvma.begin&&va< p->heapvma.end){
+        if(uvmcow(p->pagetable,va)!=0){
+             if(allocatepage(p->pagetable,va,&p->heapvma)==0){
+                 setkilled(p);
+               }
+        }
+    }else if(va>= p->heapvma.end){
        // need to modify  here.
         setkilled(p);
-    }
-    //check if is mmap
+    }else{
+          //check if is mmap
 
 
     //page in and page out
 
    // must set at end
-    if(uvmcow(p->pagetable,va)!=0){
+      if(uvmcow(p->pagetable,va)!=0){
       //printf("fuvk error\n");
-      setkilled(p);
+        setkilled(p);
+      }
+
+
     }
   }
   else {

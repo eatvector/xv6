@@ -1,5 +1,6 @@
 #include "param.h"
 #include "types.h"
+#include "vma.h"
 #include "memlayout.h"
 #include "elf.h"
 #include "riscv.h"
@@ -198,8 +199,11 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       continue;
     }
 
-    if((*pte & PTE_V) == 0)
-      panic("uvmunmap: not mapped");
+    if((*pte & PTE_V) == 0){
+     // printf("va at %p ",a);
+     // panic("uvmunmap: not mapped");
+      continue;
+    }
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
 
@@ -305,7 +309,7 @@ freewalk(pagetable_t pagetable)
       freewalk((pagetable_t)child);
       pagetable[i] = 0;
     } else if(pte & PTE_V){
-      panic("freewalk: leaf");
+      panic("freewalk:leaf");
     }
   }
   kfree((void*)pagetable);
@@ -332,17 +336,25 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 
 
 int
-uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
+uvmcopy(pagetable_t old, pagetable_t new, uint64 sz,struct vma*vma)
 {
  
   pte_t *pte;
   uint64 pa, i;
   
   for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walk(old, i, 0)) == 0)
+    if((pte = walk(old, i, 0)) == 0){
+      if(i>=vma->begin&&i<vma->end){
+         continue;
+      }
       panic("uvmcopy: pte should exist");
-    if((*pte & PTE_V) == 0)
+    }
+    if((*pte & PTE_V) == 0){
+       if(i>=vma->begin&&i<vma->end){
+         continue;
+      }
       panic("uvmcopy: page not present");
+    }
     pa = PTE2PA(*pte);
 
    //set PTE_COW,if PTE_W is set,we should set PTE_PW and clear PTE_W(both for parent and kid's pte)
@@ -412,27 +424,42 @@ int uvmcow(pagetable_t pagetable,uint64 va){
     }
 }
 
+// load a page 
+uint64 allocatepage(pagetable_t pagetable,uint64 va,struct vma*vma)
+{
+      char *mem=0;
+      if(va>=vma->begin&&va< vma->end){
+         // load the page
+       //  printf("heap vma start :%p  end :%p in heap\n",vma->begin,vma->end);
+         uint64 a=PGROUNDDOWN(va);
+         mem=kalloc();
+         if(mem==0){
+           return 0;
+         }
+         memset(mem, 0, PGSIZE);
+         if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R|PTE_U|PTE_W) != 0){
+            kfree(mem);
+           return 0;
+          }
+    }
+    return (uint64)mem;
+}
 
 // Copy from kernel to user.
 // Copy len bytes from src to virtual address dstva in a given page table.
 // Return 0 on success, -1 on error.
 int
-copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
+copyout(pagetable_t pagetable, struct vma*vma, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
- 
-
+  //printf("copyout call\n");
   while(len > 0){
-     va0 = PGROUNDDOWN(dstva);
-    
-    // va is too big or some error when handler cow page
-    if(uvmcow(pagetable,va0)==1){
-      return -1;
-    }
-
+    va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
+    if(pa0 == 0){
+      if((pa0=allocatepage(pagetable,va0,vma))==0)
+        return -1;
+    }
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
@@ -449,15 +476,17 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 // Copy len bytes to dst from virtual address srcva in a given page table.
 // Return 0 on success, -1 on error.
 int
-copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
+copyin(pagetable_t pagetable, struct vma*vma,char *dst, uint64 srcva, uint64 len)
 {
   uint64 n, va0, pa0;
-
+  //printf("copyin call\n");
   while(len > 0){
     va0 = PGROUNDDOWN(srcva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
+    if(pa0 == 0){
+      if((pa0=allocatepage(pagetable,va0,vma))==0)
+        return -1;
+    }
     n = PGSIZE - (srcva - va0);
     if(n > len)
       n = len;
@@ -475,16 +504,19 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 // until a '\0', or max.
 // Return 0 on success, -1 on error.
 int
-copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
+copyinstr(pagetable_t pagetable, struct vma*vma,char *dst, uint64 srcva, uint64 max)
 {
   uint64 n, va0, pa0;
   int got_null = 0;
-
+ // printf("copyinstr call\n");
   while(got_null == 0 && max > 0){
     va0 = PGROUNDDOWN(srcva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
+   if(pa0 == 0){
+     // printf("heap vma :start %p end %p  va %p \n",vma->begin,vma->end,va0);
+      if((pa0=allocatepage(pagetable,va0,vma))==0)
+        return -1;
+    }
     n = PGSIZE - (srcva - va0);
     if(n > max)
       n = max;
