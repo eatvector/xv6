@@ -188,6 +188,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
 {
   uint64 a;
   pte_t *pte;
+  
 
   if((va % PGSIZE) != 0)
     panic("uvmunmap: not aligned");
@@ -200,9 +201,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     }
 
     if((*pte & PTE_V) == 0){
-     // printf("va at %p ",a);
-     // panic("uvmunmap: not mapped");
-      continue;
+     continue;
     }
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
@@ -459,6 +458,10 @@ copyout(pagetable_t pagetable, struct vma*vma, uint64 dstva, char *src, uint64 l
     if(pa0 == 0){
       if((pa0=allocatepage(pagetable,va0,vma))==0)
         return -1;
+    }else{
+         //may be a cow page
+         uvmcow(pagetable,va0);
+         pa0 = walkaddr(pagetable, va0);
     }
     n = PGSIZE - (dstva - va0);
     if(n > len)

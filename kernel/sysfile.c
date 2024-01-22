@@ -434,8 +434,6 @@ sys_chdir(void)
 uint64
 sys_exec(void)
 {
-
-  printf("exec call\n");
   char path[MAXPATH], *argv[MAXARG];
   int i;
   uint64 uargv, uarg;

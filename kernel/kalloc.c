@@ -25,6 +25,7 @@ static uint phypage_refs[PHYSTOP/PGSIZE];
 
 void  increase_ref(uint64 pa){
   if((pa % PGSIZE) != 0 ||pa >= PHYSTOP){
+    printf("pa %p stop %p\n",pa,PHYSTOP);
     panic("increase_ref");
   }
   uint64 i=pa/PGSIZE;
@@ -35,10 +36,15 @@ void  increase_ref(uint64 pa){
 
 void decrease_ref(uint64 pa){
     if((pa % PGSIZE) != 0 ||pa >= PHYSTOP){
+      printf("pa %p stop %p\n",pa,PHYSTOP);
       panic("decrease_ref");
     }
     uint64 i=pa/PGSIZE;
     if(pa>=PGROUNDUP((uint64)end)){
+      /*
+      if(phypage_refs[i]==0){
+        panic(" decrease ref\n");
+      }*/
       phypage_refs[i]--;
     }
 }
