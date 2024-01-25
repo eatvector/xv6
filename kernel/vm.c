@@ -5,6 +5,7 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include"vma.h"
 
 /*
  * the kernel's page table.
@@ -145,6 +146,12 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   uint64 a, last;
   pte_t *pte;
 
+
+  if(pa>PHYSTOP){
+    printf("va at %p\n");
+    panic("pa is too big\n");
+  }
+
   if(size == 0)
     panic("mappages: size");
   
@@ -153,8 +160,14 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   for(;;){
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
-    if(*pte & PTE_V)
+    if(*pte & PTE_V){
       panic("mappages: remap");
+    }
+
+      if(pagetable!=kernel_pagetable&&a!=TRAMPOLINE&&a!=TRAPFRAME){
+      increase_ref(pa);
+   }
+
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
       break;
@@ -181,8 +194,14 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       panic("uvmunmap: walk");
     if((*pte & PTE_V) == 0)
       panic("uvmunmap: not mapped");
+
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
+
+    if(pagetable!=kernel_pagetable&&a!=TRAMPOLINE&&a!=TRAPFRAME){
+       decrease_ref( PTE2PA(*pte));
+    }
+
     if(do_free){
       uint64 pa = PTE2PA(*pte);
       kfree((void*)pa);
@@ -307,31 +326,21 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
   pte_t *pte;
   uint64 pa, i;
-  
+  uint flags;
+  char *mem;
+
   for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walk(old, i, 0)) == 0){
-      /*if(i>=vma->begin&&i<vma->end){
-         continue;
-      }*/
+    if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
-    }
-    if((*pte & PTE_V) == 0){
-       /*if(i>=vma->begin&&i<vma->end){
-         continue;
-      }*/
+    if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
-    }
     pa = PTE2PA(*pte);
-
-   //set PTE_COW,if PTE_W is set,we should set PTE_PW and clear PTE_W(both for parent and kid's pte)
-   // flags = PTE_FLAGS(*pte);
-    if(*pte&PTE_W){
-       *pte&=(~PTE_W);
-       *pte|=PTE_COW;
-    }
-
-    // map to the same physical page
-    if(mappages(new, i, PGSIZE, (uint64)pa, PTE_FLAGS(*pte)) != 0){
+    flags = PTE_FLAGS(*pte);
+    if((mem = kalloc()) == 0)
+      goto err;
+    memmove(mem, (char*)pa, PGSIZE);
+    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
+      kfree(mem);
       goto err;
     }
   }
@@ -341,6 +350,66 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   uvmunmap(new, 0, i / PGSIZE, 1);
   return -1;
 }
+
+
+
+// use cow
+// assume that vmas has been copy
+int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
+
+
+    for(int i=0;i<NVMA;i++){
+       //uint64 va=vmas[i]->addr
+
+     // uint n=MMAPMAXLENTH/PGSIZE;
+      int s=0;
+
+      if(oldvmas[i]==0){
+        continue;
+      }
+
+      uint64 va=oldvmas[i]->addr;
+      uint lenth=oldvmas[i]->lenth;
+      uint n=lenth/PGSIZE;
+     
+
+      //n=n>lenth?lenth:n;
+
+      for(;s<n;s++){
+        if(oldvmas[i]->inmemory&(1<<s)){
+            
+            if(va%PGSIZE||lenth%PGSIZE){
+               panic("mmap");
+            }
+            pte_t *pte;
+            uint64 pa;
+            pte=walk(old,va,0);
+            if(pte==0)
+              panic("should in memory");
+            if((*pte&PTE_V)==0)
+               panic("not present");
+            pa=PTE2PA(*pte);
+            if(*pte&PTE_W){
+                *pte&=(~PTE_W);
+                *pte|=PTE_COW;
+            }
+            if(mappages(new, va, PGSIZE, (uint64)pa, PTE_FLAGS(*pte)) != 0){
+                   goto err;
+            }
+        }
+         va+=PGSIZE;
+      }
+    }
+
+    return 0;
+    
+    //need modify here
+    err:
+    panic("uvmmmapcopy");
+}
+
+
+
 
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.

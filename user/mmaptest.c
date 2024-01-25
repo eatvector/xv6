@@ -284,7 +284,7 @@ fork_test(void)
     err("fork mismatch (1)");
   
 
-   printf("before fork");
+   printf("before fork\n");
    //check(p1);
    //check(p2);
 

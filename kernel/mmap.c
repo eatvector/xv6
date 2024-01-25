@@ -35,7 +35,13 @@ int mmap(uint64 addr){
    // we map file from this space
     addr=PGROUNDDOWN(addr);
     //printf("map at addr:%d\n");
-   
+    int s=(addr-(uint64)v->addr)/PGSIZE;
+
+    //may be a cow page
+    if(v->inmemory&(1<<s)){
+        return 1;
+    }
+
     char *mem;
     if((mem=kalloc())==0){
         return -1;
@@ -69,7 +75,7 @@ int mmap(uint64 addr){
         return -1;
     }
 
-    int s=(addr-(uint64)v->addr)/PGSIZE;
+     s=(addr-(uint64)v->addr)/PGSIZE;
     v->inmemory|=(1<<s);
     //change in_memory
     iunlock(v->f->ip);

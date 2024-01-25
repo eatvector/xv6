@@ -14,6 +14,34 @@ void freerange(void *pa_start, void *pa_end);
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
+static uint phypage_refs[PHYSTOP/PGSIZE];
+
+void  increase_ref(uint64 pa){
+  if((pa % PGSIZE) != 0 ||pa >= PHYSTOP){
+   // printf("pa %p stop %p\n",pa,PHYSTOP);
+    panic("increase_ref");
+  }
+  uint64 i=pa/PGSIZE;
+    if(pa>=PGROUNDUP((uint64)end) ){
+      phypage_refs[i]++;
+    } 
+}
+
+void decrease_ref(uint64 pa){
+    if((pa % PGSIZE) != 0 ||pa >= PHYSTOP){
+      printf("pa %p stop %p\n",pa,PHYSTOP);
+      panic("decrease_ref");
+    }
+    uint64 i=pa/PGSIZE;
+    if(pa>=PGROUNDUP((uint64)end)){
+      /*
+      if(phypage_refs[i]==0){
+        panic(" decrease ref\n");
+      }*/
+      phypage_refs[i]--;
+    }
+}
+
 struct run {
   struct run *next;
 };

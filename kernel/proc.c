@@ -315,6 +315,10 @@ fork(void)
      }
   }
 
+  //mmap region
+  uvmmmapcopy(p->pagetable,np->pagetable,p->mapregiontable);
+
+
 // data ,code ,heap
   np->sz = p->sz;
 
@@ -374,7 +378,7 @@ exit(int status)
     panic("init exiting");
 
   // for mmap
-   munmapallfile();
+   munmapall();
   
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){

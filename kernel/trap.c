@@ -70,10 +70,18 @@ usertrap(void)
   } else if(r_scause()==0xd){
     // if we have a load page fault
       // printf("lost page at %p\n",r_stval());
-       if(mmapfile(r_stval())!=0){
+      uint64 va=r_stval();
+      int  ret=mmap(va);
+      if(ret==-1){
            printf("usertrap():load page fault");
            setkilled(p);
+       }else if(ret==1){
+            if(uvmcow(p->pagetable,va)==-1){
+              printf("can not handle this ");
+              setkilled(p);
+            }
        }
+
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

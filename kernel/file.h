@@ -1,3 +1,8 @@
+#ifndef FILE_H
+#define FILE_H
+#include"sleeplock.h"
+#include"fs.h"
+
 struct file {
   enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
   int ref; // reference count
@@ -37,16 +42,7 @@ struct devsw {
 
 extern struct devsw devsw[];
 
-// for mmap
-struct vma{
-  uint64 addr;
-  uint lenth;//lenth is less then 4,so 4 is enough
-  uint off;
-  int prot;
-  int flags;
-  struct file*f;
-  int isalloc;
-  uint8 inmemory;
-};
+
 
 #define CONSOLE 1
+#endif
