@@ -307,21 +307,31 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
   pte_t *pte;
   uint64 pa, i;
-  uint flags;
-  char *mem;
-
+  
   for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walk(old, i, 0)) == 0)
+    if((pte = walk(old, i, 0)) == 0){
+      /*if(i>=vma->begin&&i<vma->end){
+         continue;
+      }*/
       panic("uvmcopy: pte should exist");
-    if((*pte & PTE_V) == 0)
+    }
+    if((*pte & PTE_V) == 0){
+       /*if(i>=vma->begin&&i<vma->end){
+         continue;
+      }*/
       panic("uvmcopy: page not present");
+    }
     pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+
+   //set PTE_COW,if PTE_W is set,we should set PTE_PW and clear PTE_W(both for parent and kid's pte)
+   // flags = PTE_FLAGS(*pte);
+    if(*pte&PTE_W){
+       *pte&=(~PTE_W);
+       *pte|=PTE_COW;
+    }
+
+    // map to the same physical page
+    if(mappages(new, i, PGSIZE, (uint64)pa, PTE_FLAGS(*pte)) != 0){
       goto err;
     }
   }
