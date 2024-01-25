@@ -605,7 +605,7 @@ uint64 sys_mmap(void){
   argint(1,&length);
 
    //args check is put in munmapfile
-  return munmapfile(addr,length);
+  return munmap(addr,length);
    
  }
 

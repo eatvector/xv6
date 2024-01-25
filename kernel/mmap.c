@@ -13,7 +13,7 @@
 #include "memlayout.h"
 
 //return 0 if is mmap,-1 if is load page fault
-int mmapfile(uint64 addr){
+int mmap(uint64 addr){
 
     struct proc *p=myproc();
     struct vma*vi=0;
@@ -77,7 +77,7 @@ int mmapfile(uint64 addr){
 }
 
 
-int  munmapfile(uint64 addr,uint len){
+int  munmap(uint64 addr,uint len){
     //addr is in  start or end ,len is 0 or the whole file
     // addr must be page aligned
     // we have find the region
@@ -172,13 +172,13 @@ int  munmapfile(uint64 addr,uint len){
 
 
 //used in exit
-void munmapallfile(){
+void munmapall(){
     
     struct proc *p=myproc();
     struct vma *v=0;
     for(int i=0;i<NVMA;i++){
         if((v=p->mapregiontable[i])!=0){
-          munmapfile(v->addr,v->lenth);
+          munmap(v->addr,v->lenth);
         }
     }
 }

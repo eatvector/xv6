@@ -437,3 +437,37 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+int uvmcow(pagetable_t pagetable,uint64 va){
+    pte_t *pte;
+    if(va>=MAXVA){
+      return 1;
+    }
+    // if is a cow page
+    if((pte = walk( pagetable, va, 0)) !=0&&(*pte)&PTE_COW){
+        uint64 pa=PTE2PA(*pte);
+        char *mem;
+        if((mem=kalloc())==0){
+           return 1;
+        }
+        memmove(mem,(char *)pa,PGSIZE);
+
+        int flags=PTE_FLAGS(*pte);
+        flags&=(~PTE_COW);
+        flags|=PTE_W;
+
+        uint64 a=PGROUNDDOWN(va);
+        uvmunmap( pagetable,a,1,1);
+
+        if(mappages(pagetable, a, PGSIZE, (uint64)mem, flags) != 0){
+            kfree(mem);
+            return 1;
+        }
+        return 0;
+    }else {
+      //not a cow page or pte not exit
+        return -1;
+    }
+}
+
+

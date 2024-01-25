@@ -194,9 +194,9 @@ void            virtio_disk_intr(void);
 
 #ifdef LAB_MMAP
 // mmap.c
-int mmapfile(uint64);
-int  munmapfile(uint64 addr,uint len);
-void munmapallfile();
+int mmap(uint64);
+int  munmap(uint64 addr,uint len);
+void munmapall();
 #endif
 
 
