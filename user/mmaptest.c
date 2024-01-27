@@ -40,6 +40,7 @@ _v1(char *p)
   for (i = 0; i < PGSIZE*2; i++) {
     if (i < PGSIZE + (PGSIZE/2)) {
       if (p[i] != 'A') {
+        printf("mismatch at va:%p\n",p+i);
         printf("mismatch at %d, wanted 'A', got 0x%x\n", i, p[i]);
         err("v1 mismatch (1)");
       }
@@ -282,6 +283,7 @@ fork_test(void)
   // read just 2nd page.
   if(*(p1+PGSIZE) != 'A')
     err("fork mismatch (1)");
+  printf("mmaptests at va:%p\n",p1+PGSIZE);
   
 
    printf("before fork\n");
@@ -310,7 +312,7 @@ fork_test(void)
   //check(p1);
   //check(p2);
   //_v1(p2);
- // printf("parent vq start\n");
+  printf("parent vq start\n");
   _v1(p1);
   _v1(p2);
 

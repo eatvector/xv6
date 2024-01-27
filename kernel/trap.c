@@ -70,8 +70,24 @@ usertrap(void)
   } else if(r_scause()==0xd){
     // if we have a load page fault
       // printf("lost page at %p\n",r_stval());
+     
       uint64 va=r_stval();
+      pte_t *pte;
+      pte=walk(p->pagetable,0x0000003ffffbf000,0);
+      if(pte){
+        uint64 paddr=PTE2PA(*pte);
+        if(paddr!=0){
+        char *s=(char *)paddr;
+
+        printf("at va 0x0000003ffffbf000 is pa %p   %d",paddr,*s);
+        }
+      }
+
+      printf("handle pagefault  at va %p   proc pid %d",va,p->pid);
       int  ret=mmap(va);
+      if(ret==0){
+        printf("handler pagefault with mmap\n");
+      }
       if(ret==-1){
            printf("usertrap():load page fault");
            setkilled(p);
@@ -82,9 +98,11 @@ usertrap(void)
             }
        }
 
+
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    printf("            name=%s\n",p->name);
     setkilled(p);
   }
 

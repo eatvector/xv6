@@ -6,11 +6,13 @@
 #include "defs.h"
 #include "fs.h"
 #include"vma.h"
+#include"proc.h"
 
 /*
  * the kernel's page table.
  */
 pagetable_t kernel_pagetable;
+
 
 extern char etext[];  // kernel.ld sets this to end of kernel code.
 
@@ -351,41 +353,24 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   return -1;
 }
 
-
-
 // use cow
 // assume that vmas has been copy
 int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
-
-
     for(int i=0;i<NVMA;i++){
-       //uint64 va=vmas[i]->addr
-
-     // uint n=MMAPMAXLENTH/PGSIZE;
-      int s=0;
-
       if(oldvmas[i]==0){
         continue;
       }
-
       uint64 va=oldvmas[i]->addr;
       uint lenth=oldvmas[i]->lenth;
       uint n=lenth/PGSIZE;
-     
-
-      //n=n>lenth?lenth:n;
-
+      pte_t *pte;
+      uint64 pa;
+      int s=0;
       for(;s<n;s++){
-        if(oldvmas[i]->inmemory&(1<<s)){
-            
-            if(va%PGSIZE||lenth%PGSIZE){
-               panic("mmap");
-            }
-            pte_t *pte;
-            uint64 pa;
+    if(oldvmas[i]->inmemory&(1<<s)){
             pte=walk(old,va,0);
             if(pte==0)
-              panic("should in memory");
+              panic("lost pte");
             if((*pte&PTE_V)==0)
                panic("not present");
             pa=PTE2PA(*pte);
@@ -393,6 +378,9 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
                 *pte&=(~PTE_W);
                 *pte|=PTE_COW;
             }
+            char c=*((char *)pa);
+             
+            printf("shareing some page   :va%p  pa %p  pa[0] %d pid %d\n",va,pa,c,myproc()->pid);
             if(mappages(new, va, PGSIZE, (uint64)pa, PTE_FLAGS(*pte)) != 0){
                    goto err;
             }
@@ -402,7 +390,6 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
     }
 
     return 0;
-    
     //need modify here
     err:
     panic("uvmmmapcopy");
@@ -519,6 +506,9 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
 int uvmcow(pagetable_t pagetable,uint64 va){
     pte_t *pte;
+    
+    printf("uvmcow\n");
+
     if(va>=MAXVA){
       return 1;
     }

@@ -39,6 +39,7 @@ int mmap(uint64 addr){
 
     //may be a cow page
     if(v->inmemory&(1<<s)){
+        printf("a mmap cow page");
         return 1;
     }
 
@@ -74,7 +75,8 @@ int mmap(uint64 addr){
         iunlock(v->f->ip);
         return -1;
     }
-
+    
+    printf("mmap pa:%p %d",mem,mem[0]);
      s=(addr-(uint64)v->addr)/PGSIZE;
     v->inmemory|=(1<<s);
     //change in_memory

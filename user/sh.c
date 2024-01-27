@@ -193,6 +193,9 @@ fork1(void)
 //PAGEBREAK!
 // Constructors
 
+
+//heap error
+
 struct cmd*
 execcmd(void)
 {
