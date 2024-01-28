@@ -9,6 +9,7 @@
         "types.h": "c",
         "vma.h": "c",
         "spinlock.h": "c",
-        "sleeplock.h": "c"
+        "sleeplock.h": "c",
+        "user.h": "c"
     }
 }

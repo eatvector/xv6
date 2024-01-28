@@ -55,12 +55,15 @@ int mmap(uint64 addr){
     }
     if(v->prot&PROT_WRITE){
         perm|=PTE_W;
+        //printf("set writted at va %p\n",addr);
     }
 
     if(perm==PTE_U){
         return -1;
     }
-    
+
+ //  printf("at va %p perm %x\n",addr,perm);
+
     // we not fuck map this 
     memset(mem,0,PGSIZE);
     if(mappages(p->pagetable,addr,PGSIZE,(uint64)mem,perm)!=0){
@@ -76,8 +79,6 @@ int mmap(uint64 addr){
         return -1;
     }
     
-    printf("mmap pa:%p %d",mem,mem[0]);
-     s=(addr-(uint64)v->addr)/PGSIZE;
     v->inmemory|=(1<<s);
     //change in_memory
     iunlock(v->f->ip);

@@ -14,11 +14,18 @@ void freerange(void *pa_start, void *pa_end);
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
+
+// to trace each puhysical page's references(the physical page TRACE must be set)
+
+//#define TRACE  0x10000
+//#define REF_MASK  0xFFFF
+
 static uint phypage_refs[PHYSTOP/PGSIZE];
+
 
 void  increase_ref(uint64 pa){
   if((pa % PGSIZE) != 0 ||pa >= PHYSTOP){
-   // printf("pa %p stop %p\n",pa,PHYSTOP);
+    printf("pa %p stop %p\n",pa,PHYSTOP);
     panic("increase_ref");
   }
   uint64 i=pa/PGSIZE;
@@ -42,6 +49,8 @@ void decrease_ref(uint64 pa){
     }
 }
 
+
+
 struct run {
   struct run *next;
 };
@@ -56,6 +65,7 @@ kinit()
 {
   initlock(&kmem.lock, "kmem");
   freerange(end, (void*)PHYSTOP);
+  memset(phypage_refs,0,sizeof(phypage_refs));
 }
 
 void
@@ -74,12 +84,17 @@ freerange(void *pa_start, void *pa_end)
 void
 kfree(void *pa)
 {
+
   struct run *r;
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
-  //if(phypage_refs[pa/PGSIZE])
+  if(phypage_refs[(uint64)pa/PGSIZE]){
+   // printf("Can not free refs:%d\n",page_ref&REF_MASK);
+    return ;
+  }
+
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
 
@@ -105,7 +120,12 @@ kalloc(void)
     kmem.freelist = r->next;
   release(&kmem.lock);
 
-  if(r)
+  if(r){
     memset((char*)r, 5, PGSIZE); // fill with junk
+    phypage_refs[(uint64)r/PGSIZE]=0;
+  }
+
   return (void*)r;
 }
+
+

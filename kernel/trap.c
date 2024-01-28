@@ -67,27 +67,16 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else if(r_scause()==0xd){
+  } else if(r_scause()==0xd||r_scause()==0xf){
     // if we have a load page fault
       // printf("lost page at %p\n",r_stval());
      
       uint64 va=r_stval();
-      pte_t *pte;
-      pte=walk(p->pagetable,0x0000003ffffbf000,0);
-      if(pte){
-        uint64 paddr=PTE2PA(*pte);
-        if(paddr!=0){
-        char *s=(char *)paddr;
-
-        printf("at va 0x0000003ffffbf000 is pa %p   %d",paddr,*s);
-        }
-      }
-
-      printf("handle pagefault  at va %p   proc pid %d",va,p->pid);
+      //pte_t *pte=walk(p->pagetable,va,0);
+      //printf("\npa %p  pte  U%d  pte V %d pte W %d\n",PTE2PA(*pte),*pte&PTE_U,*pte&PTE_V,*pte&PTE_W);
+     
       int  ret=mmap(va);
-      if(ret==0){
-        printf("handler pagefault with mmap\n");
-      }
+      
       if(ret==-1){
            printf("usertrap():load page fault");
            setkilled(p);

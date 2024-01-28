@@ -378,9 +378,8 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
                 *pte&=(~PTE_W);
                 *pte|=PTE_COW;
             }
-            char c=*((char *)pa);
              
-            printf("shareing some page   :va%p  pa %p  pa[0] %d pid %d\n",va,pa,c,myproc()->pid);
+           // printf("shareing some page   :va%p  pa %p  pa[0] %d pid %d\n",va,pa,c,myproc()->pid);
             if(mappages(new, va, PGSIZE, (uint64)pa, PTE_FLAGS(*pte)) != 0){
                    goto err;
             }
@@ -506,9 +505,10 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
 int uvmcow(pagetable_t pagetable,uint64 va){
     pte_t *pte;
-    
-    printf("uvmcow\n");
 
+
+    printf("cow call\n");
+    
     if(va>=MAXVA){
       return 1;
     }

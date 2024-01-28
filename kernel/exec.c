@@ -23,7 +23,6 @@ int
 exec(char *path, char **argv)
 {
 
-  printf("start exec\n");
   char *s, *last;
   int i, off;
   uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
@@ -130,7 +129,6 @@ exec(char *path, char **argv)
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
 
-  printf("end exec\n");
 
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
