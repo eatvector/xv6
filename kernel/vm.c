@@ -7,6 +7,7 @@
 #include "fs.h"
 #include"vma.h"
 #include"proc.h"
+#include"fcntl.h"
 
 /*
  * the kernel's page table.
@@ -366,6 +367,7 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
       pte_t *pte;
       uint64 pa;
       int s=0;
+      int share=(oldvmas[i]->flags==MAP_PRIVATE );
       for(;s<n;s++){
     if(oldvmas[i]->inmemory&(1<<s)){
             pte=walk(old,va,0);
@@ -374,9 +376,13 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
             if((*pte&PTE_V)==0)
                panic("not present");
             pa=PTE2PA(*pte);
-            if(*pte&PTE_W){
-                *pte&=(~PTE_W);
-                *pte|=PTE_COW;
+            
+            //only MAP_PRIVATE use cow
+            if(!share){
+              if(*pte&PTE_W){
+                  *pte&=(~PTE_W);
+                  *pte|=PTE_COW;
+              }
             }
              
            // printf("shareing some page   :va%p  pa %p  pa[0] %d pid %d\n",va,pa,c,myproc()->pid);

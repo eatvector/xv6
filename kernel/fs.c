@@ -495,6 +495,20 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
   return tot;
 }
 
+//implent this for mmap
+//direct get the buffercache 
+//increase the ref cnt
+struct buf*bufgeti(struct inode *ip,uint off){
+  
+   if(off>=ip->size){
+       return 0;
+   }
+   struct buf *bp;
+   uint addr = bmap(ip, off/BSIZE);
+   bp = bread(ip->dev, addr);
+   return bp;
+}
+
 // Write data to inode.
 // Caller must hold ip->lock.
 // If user_src==1, then src is a user virtual address;

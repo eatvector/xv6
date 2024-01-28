@@ -11,6 +11,7 @@
 #include "proc.h"
 #include "fcntl.h"
 #include "memlayout.h"
+#include "buf.h"
 
 //return 0 if is mmap,-1 if is load page fault
 int mmap(uint64 addr){
@@ -43,12 +44,8 @@ int mmap(uint64 addr){
         return 1;
     }
 
-    char *mem;
-    if((mem=kalloc())==0){
-        return -1;
-    }
-
-     int perm= PTE_U;
+   
+    int perm= PTE_U;
 
     if(v->prot&PROT_READ){
         perm|=PTE_R;
@@ -62,26 +59,39 @@ int mmap(uint64 addr){
         return -1;
     }
 
- //  printf("at va %p perm %x\n",addr,perm);
-
-    // we not fuck map this 
-    memset(mem,0,PGSIZE);
-    if(mappages(p->pagetable,addr,PGSIZE,(uint64)mem,perm)!=0){
-        return -1;
+    if(v->flags!=MAP_SHARED&&v->flags!=MAP_PRIVATE){
+        panic("mmap:flags");
     }
 
-    ilock(v->f->ip);
-    //read file to physical memory
-    // fuck mot pgsize
 
-    if(readi(v->f->ip,1,addr,addr-(uint64)v->addr+v->off,PGSIZE)==-1){
+    char *mem;
+    if(v->flags==MAP_PRIVATE){
+
+        if((mem=kalloc())==0){
+            return -1;
+        }
+        memset(mem,0,PGSIZE);
+        ilock(v->f->ip);
+        if(readi(v->f->ip,0,(uint64)mem,addr-(uint64)v->addr+v->off,PGSIZE)==-1){
+            iunlock(v->f->ip);
+            return -1;
+        }
         iunlock(v->f->ip);
-        return -1;
+    }else{
+         //mem point to the buffer_chche
+         ilock(v->f->ip); 
+         struct buf *bp;
+         bp=bufgeti(v->f->ip,addr-(uint64)v->addr+v->off);
+         iunlock(v->f->ip);
+         mem=(char *)bp->data;
     }
     
+    if(mappages(p->pagetable,addr,PGSIZE,(uint64)mem,perm)!=0){
+            return -1;
+    }
     v->inmemory|=(1<<s);
     //change in_memory
-    iunlock(v->f->ip);
+    
     return 0;
 }
 
@@ -130,7 +140,7 @@ int  munmap(uint64 addr,uint len){
 
     //layzy allocation may not in memory
     uint64 umap_addr=addr;
-    int r=0;
+    int r=0; 
     // this is very important
     int s=(addr-v->addr)/PGSIZE;
    
@@ -140,24 +150,67 @@ int  munmap(uint64 addr,uint len){
         //int inmemory=(walkaddr(p->pagetable,umap_addr)!=0);
         int inmemory=((v->inmemory&(1<<s))!=0);
 
+        if(inmemory){
+             pte_t *pte=walk(p->pagetable,umap_addr,0);
+             if(pte==0||*pte&PTE_V==0){
+                panic("unmap");
+             }
+             uint64 paddr=PTE2PA(*pte);
+             
+             if(v->flags=MAP_SHARED){
+
+                 begin_op();
+                 log_write((struct buf*)paddr);
+                 end_op();
+                 uvmunmap(p->pagetable,umap_addr,1,0);
+                 brelse((struct buf *)paddr);
+
+             }else if(v->flags==MAP_PRIVATE){
+                uvmunmap(p->pagetable,umap_addr,1,1);
+             }
+             else{
+                 panic("umap");
+             }
+             v->inmemory&=~(1<<s);
+       }
+    
+
+
+
+     #if 0
         if(v->flags==MAP_SHARED&&inmemory){
             begin_op();
-            ilock(v->f->ip);
-            if( writei(v->f->ip, 1,umap_addr,umap_addr-v->addr+v->off,PGSIZE)!=PGSIZE){
+            //ilock(v->f->ip);
+            /*if( writei(v->f->ip, 1,umap_addr,umap_addr-v->addr+v->off,PGSIZE)!=PGSIZE){
                 r=-1;
-            }
-            iunlock(v->f->ip);
+            }*/
+
+            log_write()
+            //iunlock(v->f->ip);
             end_op();
         }
 
-        if(r==-1){
+        /*if(r==-1){
             return -1;
-        }
+        }*/
 
         if(inmemory){
-            uvmunmap(p->pagetable,umap_addr,1,1);
+            if(v->flags==MAP_PRIVATE){
+             uvmunmap(p->pagetable,umap_addr,1,1);
+            }else{
+            // here is very difficult
+             pte_t *pte=walk(p->pagetable,umap_addr,0);
+             if(pte==0||*pte&PTE_V==0){
+                panic("unmap");
+             }
+             uint64 paddr=PTE2PA(*pte);
+             uvmunmap(p->pagetable,umap_addr,1,0);
+             brelse((struct buf *)paddr);
+            }
+
             v->inmemory&=~(1<<s);
         }
+        #endif
     }
 
     v->lenth-=len;
