@@ -123,6 +123,7 @@ recover_from_log(void)
 }
 
 // called at the start of each FS system call.
+// after return from this ,logoutstanding will plus one.
 void
 begin_op(void)
 {
@@ -149,10 +150,12 @@ end_op(void)
   int do_commit = 0;
 
   acquire(&log.lock);
+  //outstanding cnt the fs syscall has do begin_op but not minus outstabding in end_op
   log.outstanding -= 1;
   if(log.committing)
     panic("log.committing");
   if(log.outstanding == 0){
+    //other proc  begin_op never do or is sleeping on begin_op
     do_commit = 1;
     log.committing = 1;
   } else {
@@ -226,6 +229,7 @@ log_write(struct buf *b)
     if (log.lh.block[i] == b->blockno)   // log absorption
       break;
   }
+  //remember the blcno we want to write to disk
   log.lh.block[i] = b->blockno;
   if (i == log.lh.n) {  // Add new block to log?
     bpin(b);

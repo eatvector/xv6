@@ -34,8 +34,6 @@ struct {
 } bcache;
 
 
-
-
 void
 binit(void)
 {
@@ -128,6 +126,7 @@ brelse(struct buf *b)
   b->refcnt--;
   if (b->refcnt == 0) {
     // no one is waiting for it.
+    // add it to list,can be used as an empty bufcache.
     b->next->prev = b->prev;
     b->prev->next = b->next;
     b->next = bcache.head.next;

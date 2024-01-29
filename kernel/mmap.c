@@ -59,12 +59,13 @@ int mmap(uint64 addr){
         return -1;
     }
 
-    if(v->flags!=MAP_SHARED&&v->flags!=MAP_PRIVATE){
+   /* if(v->flags!=MAP_SHARED&&v->flags!=MAP_PRIVATE){
         panic("mmap:flags");
-    }
+    }*/
 
 
     char *mem;
+    begin_op();
     if(v->flags==MAP_PRIVATE){
 
         if((mem=kalloc())==0){
@@ -77,14 +78,21 @@ int mmap(uint64 addr){
             return -1;
         }
         iunlock(v->f->ip);
-    }else{
+    }else if(v->flags==MAP_SHARED){
          //mem point to the buffer_chche
          ilock(v->f->ip); 
          struct buf *bp;
          bp=bufgeti(v->f->ip,addr-(uint64)v->addr+v->off);
          iunlock(v->f->ip);
          mem=(char *)bp->data;
+         // release the sleeplock
+         // avoid destory the bp
+         bpin(bp);
+         brelse(bp);
+    }else{
+        panic("mmap:flags");
     }
+    end_op();
     
     if(mappages(p->pagetable,addr,PGSIZE,(uint64)mem,perm)!=0){
             return -1;
@@ -143,38 +151,45 @@ int  munmap(uint64 addr,uint len){
     int r=0; 
     // this is very important
     int s=(addr-v->addr)/PGSIZE;
-   
+
+
+
+    begin_op();
 
     for(;umap_addr<addr+len;umap_addr+=PGSIZE,s++){
         // check if is in memory
         //int inmemory=(walkaddr(p->pagetable,umap_addr)!=0);
         int inmemory=((v->inmemory&(1<<s))!=0);
-
+        uint off;
         if(inmemory){
-             pte_t *pte=walk(p->pagetable,umap_addr,0);
-             if(pte==0||*pte&PTE_V==0){
-                panic("unmap");
-             }
-             uint64 paddr=PTE2PA(*pte);
-             
              if(v->flags=MAP_SHARED){
 
-                 begin_op();
-                 log_write((struct buf*)paddr);
-                 end_op();
-                 uvmunmap(p->pagetable,umap_addr,1,0);
-                 brelse((struct buf *)paddr);
+                struct buf*bp;
+
+                ilock(v->f->ip); 
+                bp=bufgeti(v->f->ip,umap_addr-(uint64)v->addr+v->off);
+                iunlock(v->f->ip);
+
+               
+                log_write(bp);
+               
+                
+
+                bunpin(bp);
+                brelse(bp);
+                uvmunmap(p->pagetable,umap_addr,1,0);
+                
 
              }else if(v->flags==MAP_PRIVATE){
                 uvmunmap(p->pagetable,umap_addr,1,1);
              }
              else{
-                 panic("umap");
+                 panic("umap:flags");
              }
              v->inmemory&=~(1<<s);
        }
     
-
+  
 
 
      #if 0
@@ -212,6 +227,8 @@ int  munmap(uint64 addr,uint len){
         }
         #endif
     }
+
+    end_op();
 
     v->lenth-=len;
     if(addr==(uint64)v->addr){

@@ -369,7 +369,7 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
       int s=0;
       int share=(oldvmas[i]->flags==MAP_PRIVATE );
       for(;s<n;s++){
-    if(oldvmas[i]->inmemory&(1<<s)){
+           if(oldvmas[i]->inmemory&(1<<s)){
             pte=walk(old,va,0);
             if(pte==0)
               panic("lost pte");
@@ -383,6 +383,9 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
                   *pte&=(~PTE_W);
                   *pte|=PTE_COW;
               }
+            }else{
+              // increase the buffercache reference cnt
+              bpin((struct buf*)pa);
             }
              
            // printf("shareing some page   :va%p  pa %p  pa[0] %d pid %d\n",va,pa,c,myproc()->pid);
@@ -399,9 +402,6 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
     err:
     panic("uvmmmapcopy");
 }
-
-
-
 
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
