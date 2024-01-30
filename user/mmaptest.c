@@ -9,6 +9,7 @@
 void mmap_test();
 void fork_test();
 char buf[BSIZE];
+//char superbuf[2*BSIZE];
 
 #define MAP_FAILED ((char *) -1)
 
@@ -75,9 +76,19 @@ makefile(const char *f)
     if (write(fd, buf, BSIZE) != BSIZE)
       err("write 0 makefile");
   }
+
+  memset(buf+2048,0,BSIZE/2);
+  if (write(fd, buf, BSIZE) != BSIZE)
+      err("write 0 makefile");
+
+
+
+
   if (close(fd) == -1)
     err("close");
 }
+
+
 
 void
 mmap_test(void)
@@ -116,7 +127,9 @@ mmap_test(void)
   char *p = mmap(0, PGSIZE*2, PROT_READ, MAP_PRIVATE, fd, 0);
   if (p == MAP_FAILED)
     err("mmap (1)");
+  printf("first v1");
   _v1(p);
+  printf("first v1 end");
   if (munmap(p, PGSIZE*2) == -1)
     err("munmap (1)");
 
@@ -142,6 +155,9 @@ mmap_test(void)
     
   // check that mmap doesn't allow read/write mapping of a
   // file opened read-only.
+
+
+  printf("start shared test\n");
   if ((fd = open(f, O_RDONLY)) == -1)
     err("open");
   p = mmap(0, PGSIZE*3, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -165,6 +181,7 @@ mmap_test(void)
     err("close");
 
   // check that the mapping still works after close(fd).
+  printf("shared v1");
   _v1(p);
 
 

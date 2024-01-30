@@ -11,6 +11,7 @@
         "spinlock.h": "c",
         "sleeplock.h": "c",
         "user.h": "c",
-        "buf.h": "c"
+        "buf.h": "c",
+        "riscv.h": "c"
     }
 }

@@ -30,6 +30,14 @@
 //   ...
 // Log appends are synchronous.
 
+
+
+//write log block(use dst buf cache)
+//write log header block
+//write dst block(use log block)
+//write log header block(clear)
+
+
 // Contents of the header block, used for both the on-disk header block
 // and to keep track in memory of logged block# before commit.
 struct logheader {
@@ -70,6 +78,7 @@ install_trans(int recovering)
 {
   int tail;
 
+//if the system is recover,the log.lh is read from disk.
   for (tail = 0; tail < log.lh.n; tail++) {
     struct buf *lbuf = bread(log.dev, log.start+tail+1); // read log block
     struct buf *dbuf = bread(log.dev, log.lh.block[tail]); // read dst
@@ -199,7 +208,7 @@ commit()
   if (log.lh.n > 0) {
     write_log();     // Write modified blocks from cache to log
     write_head();    // Write header to disk -- the real commit
-    install_trans(0); // Now install writes to home locations
+    install_trans(0); // Now install writes to home locations,truely write dst block on disk.
     log.lh.n = 0;
     write_head();    // Erase the transaction from the log
   }

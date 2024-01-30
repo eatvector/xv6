@@ -357,6 +357,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 // use cow
 // assume that vmas has been copy
 int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
+
     for(int i=0;i<NVMA;i++){
       if(oldvmas[i]==0){
         continue;
@@ -367,7 +368,7 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
       pte_t *pte;
       uint64 pa;
       int s=0;
-      int share=(oldvmas[i]->flags==MAP_PRIVATE );
+      int share=(oldvmas[i]->flags==MAP_SHARED );
       for(;s<n;s++){
            if(oldvmas[i]->inmemory&(1<<s)){
             pte=walk(old,va,0);
@@ -385,7 +386,7 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
               }
             }else{
               // increase the buffercache reference cnt
-              bpin((struct buf*)pa);
+               bpin((struct buf*)pa);
             }
              
            // printf("shareing some page   :va%p  pa %p  pa[0] %d pid %d\n",va,pa,c,myproc()->pid);

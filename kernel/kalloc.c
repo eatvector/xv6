@@ -24,6 +24,8 @@ static uint phypage_refs[PHYSTOP/PGSIZE];
 
 
 void  increase_ref(uint64 pa){
+  // dirty work
+ 
   if((pa % PGSIZE) != 0 ||pa >= PHYSTOP){
     printf("pa %p stop %p\n",pa,PHYSTOP);
     panic("increase_ref");

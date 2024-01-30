@@ -34,6 +34,11 @@ exec(char *path, char **argv)
 
   begin_op();
 
+  //lost all the map file
+  //munmapall();
+  //for mmap file do ssomething
+  munmapall();
+
   if((ip = namei(path)) == 0){
     end_op();
     return -1;

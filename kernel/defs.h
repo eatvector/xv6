@@ -200,12 +200,12 @@ void            virtio_disk_intr(void);
 
 
 
-#ifdef LAB_MMAP
+
 // mmap.c
 int mmap(uint64);
 int  munmap(uint64 addr,uint len);
 void munmapall();
-#endif
+
 
 
 // number of elements in fixed-size array

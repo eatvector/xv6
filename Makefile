@@ -195,6 +195,7 @@ UPROGS=\
 	$U/_zombie\
 	$U/_mmaptest\
 	$U/_mymmaptest\
+	$U/_mapsharedtest\
 
 
 
