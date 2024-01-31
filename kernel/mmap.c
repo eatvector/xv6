@@ -33,6 +33,11 @@ int mmap(uint64 addr){
         return -1;
     }
 
+    if(addr>=PGROUNDUP(v->f->ip->size)+v->addr){
+        //printf("fck size %d addr %d\n",PGROUNDUP(v->f->ip->size));
+        return -1;
+    }
+
    // we map file from this space
     addr=PGROUNDDOWN(addr);
     //printf("map at addr:%d\n");
@@ -59,22 +64,15 @@ int mmap(uint64 addr){
         return -1;
     }
 
-   /* if(v->flags!=MAP_SHARED&&v->flags!=MAP_PRIVATE){
-        panic("mmap:flags");
-    }*/
-
-
     char *mem;
     begin_op();
     if(v->flags==MAP_PRIVATE){
-
-
-        //printf("load mmap page at va:%p  with mem %p\n",addr,mem);
+        
         if((mem=kalloc())==0){
             end_op();
             return -1;
         }
-        //printf("load mmap page at va:%p  with mem %p\n",addr,mem);
+       
         memset(mem,0,PGSIZE);
         ilock(v->f->ip);
         if(readi(v->f->ip,0,(uint64)mem,addr-(uint64)v->addr+v->off,PGSIZE)==-1){
@@ -82,7 +80,7 @@ int mmap(uint64 addr){
             end_op();
             return -1;
         }
-        //printf("\nload mmap page at va:%p  with mem %p first num:%d off %d \n",addr,mem,*mem,addr-(uint64)v->addr+v->off);
+       
         iunlock(v->f->ip);
     }else if(v->flags==MAP_SHARED){
          //mem point to the buffer_chche

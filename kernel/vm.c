@@ -150,10 +150,10 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   pte_t *pte;
 
 
-  if(pa>PHYSTOP){
+  /*if(pa>PHYSTOP){
     printf("va at %p\n");
     panic("pa is too big\n");
-  }
+  }*/
 
   if(size == 0)
     panic("mappages: size");
@@ -358,17 +358,27 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 // assume that vmas has been copy
 int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
 
-    for(int i=0;i<NVMA;i++){
+    int i,j;
+    int s,k;
+    uint64 va;
+    uint lenth;
+    uint n;
+    pte_t *pte;
+    uint64 pa;
+    int share;
+
+
+    for(i=0;i<NVMA;i++){
       if(oldvmas[i]==0){
         continue;
       }
-      uint64 va=oldvmas[i]->addr;
-      uint lenth=oldvmas[i]->lenth;
-      uint n=lenth/PGSIZE;
-      pte_t *pte;
-      uint64 pa;
-      int s=0;
-      int share=(oldvmas[i]->flags==MAP_SHARED );
+       
+      va=oldvmas[i]->addr;
+      lenth=oldvmas[i]->lenth;
+      n=lenth/PGSIZE;
+      s=0;
+      share=(oldvmas[i]->flags==MAP_SHARED );
+
       for(;s<n;s++){
            if(oldvmas[i]->inmemory&(1<<s)){
             pte=walk(old,va,0);
@@ -389,7 +399,6 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
                bpin((struct buf*)pa);
             }
              
-           // printf("shareing some page   :va%p  pa %p  pa[0] %d pid %d\n",va,pa,c,myproc()->pid);
             if(mappages(new, va, PGSIZE, (uint64)pa, PTE_FLAGS(*pte)) != 0){
                    goto err;
             }
@@ -400,8 +409,45 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
 
     return 0;
     //need modify here
+    // i do not test here
     err:
-    panic("uvmmmapcopy");
+    
+    for( j=0;j<=i;j++){
+        if(oldvmas[j]==0){
+        continue;
+      }
+       
+      va=oldvmas[j]->addr;
+      lenth=oldvmas[j]->lenth;
+      n=lenth/PGSIZE;
+      k=0;
+      share=(oldvmas[j]->flags==MAP_SHARED );
+
+      for(;k<n;k++){
+           if(oldvmas[j]->inmemory&(1<<k)){
+            pte=walk(old,va,0);
+            if(pte==0)
+              panic("lost pte");
+            if((*pte&PTE_V)==0)
+               panic("not present");
+            pa=PTE2PA(*pte);
+            
+            if(!share){
+              if(*pte&PTE_COW){
+                  *pte&=(~PTE_COW);
+                  *pte|=PTE_W;
+              }
+            }else{
+               bunpin((struct buf*)pa);
+            }
+            if(!(j==i&&k==s)){
+              uvmunmap(new,va,1,0);
+            }
+        }
+         va+=PGSIZE;
+      }
+    }
+    return -1;
 }
 
 // mark a PTE invalid for user access.

@@ -78,7 +78,7 @@ usertrap(void)
       int  ret=mmap(va);
       
       if(ret==-1){
-           printf("usertrap():load page fault");
+           printf("usertrap():load page fault\n");
            setkilled(p);
        }else if(ret==1){
             if(uvmcow(p->pagetable,va)==-1){

@@ -316,7 +316,15 @@ fork(void)
   }
 
   //mmap region
-  uvmmmapcopy(p->pagetable,np->pagetable,p->mapregiontable);
+  if(uvmmmapcopy(p->pagetable,np->pagetable,p->mapregiontable)==-1){
+    for(int i=0;i<NVMA;i++){
+        if(np->mapregiontable[i]){
+               vmafree(np->mapregiontable[i]);
+        }
+    }
+    release(&np->lock);
+    return -1;
+  }
 
 
 // data ,code ,heap
