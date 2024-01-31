@@ -22,6 +22,9 @@ extern char end[]; // first address after kernel.
 
 static uint phypage_refs[PHYSTOP/PGSIZE];
 
+uint refcnt(uint64 pa){
+    return  phypage_refs[pa/PGSIZE];
+}
 
 void  increase_ref(uint64 pa){
   // dirty work

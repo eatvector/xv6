@@ -72,6 +72,7 @@ void            kfree(void *);
 void            kinit(void);
 void            increase_ref(uint64 pa);
 void            decrease_ref(uint64 pa);
+uint            refcnt(uint64 pa);
 
 
 

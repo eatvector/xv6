@@ -514,7 +514,7 @@ int uvmcow(pagetable_t pagetable,uint64 va){
     pte_t *pte;
 
 
-    printf("cow call\n");
+    //printf("cow call\n");
     
     if(va>=MAXVA){
       return 1;
@@ -523,10 +523,16 @@ int uvmcow(pagetable_t pagetable,uint64 va){
     if((pte = walk( pagetable, va, 0)) !=0&&(*pte)&PTE_COW){
         uint64 pa=PTE2PA(*pte);
         char *mem;
-        if((mem=kalloc())==0){
-           return 1;
+        if(refcnt(pa)==1){
+           mem=(char *)pa;
+        }else{
+           if((mem=kalloc())==0){
+              return 1;
+           }
+           memmove(mem,(char *)pa,PGSIZE);
         }
-        memmove(mem,(char *)pa,PGSIZE);
+
+        //memmove(mem,(char *)pa,PGSIZE);
 
         int flags=PTE_FLAGS(*pte);
         flags&=(~PTE_COW);
