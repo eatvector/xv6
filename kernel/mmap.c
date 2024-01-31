@@ -66,28 +66,26 @@ int mmap(uint64 addr){
 
     char *mem;
     begin_op();
+    ilock(v->f->ip);
     if(v->flags==MAP_PRIVATE){
-        
+
         if((mem=kalloc())==0){
-            end_op();
-            return -1;
-        }
-       
-        memset(mem,0,PGSIZE);
-        ilock(v->f->ip);
-        if(readi(v->f->ip,0,(uint64)mem,addr-(uint64)v->addr+v->off,PGSIZE)==-1){
             iunlock(v->f->ip);
             end_op();
             return -1;
         }
        
-        iunlock(v->f->ip);
+        memset(mem,0,PGSIZE);
+       
+        if(readi(v->f->ip,0,(uint64)mem,addr-(uint64)v->addr+v->off,PGSIZE)==-1){
+            iunlock(v->f->ip);
+            end_op();
+            return -1;
+        }
     }else if(v->flags==MAP_SHARED){
          //mem point to the buffer_chche
-         ilock(v->f->ip); 
          struct buf *bp;
          bp=bufgeti(v->f->ip,addr-(uint64)v->addr+v->off);
-         iunlock(v->f->ip);
          mem=(char *)bp->data;
         // printf("load the buffer cache first num:%d",*mem);
          // release the sleeplock
@@ -97,10 +95,11 @@ int mmap(uint64 addr){
     }else{
         panic("mmap:flags");
     }
+    iunlock(v->f->ip);
     end_op();
     
     if(mappages(p->pagetable,addr,PGSIZE,(uint64)mem,perm)!=0){
-            end_op();
+            //end_op();
             return -1;
     }
     v->inmemory|=(1<<s);
@@ -161,7 +160,7 @@ int  munmap(uint64 addr,uint len){
 
 
     begin_op();
-
+    ilock(v->f->ip); 
     for(;umap_addr<addr+len;umap_addr+=PGSIZE,s++){
         // check if is in memory
         //int inmemory=(walkaddr(p->pagetable,umap_addr)!=0);
@@ -172,9 +171,9 @@ int  munmap(uint64 addr,uint len){
 
                 struct buf*bp;
 
-                ilock(v->f->ip); 
+              
                 bp=bufgeti(v->f->ip,umap_addr-(uint64)v->addr+v->off);
-                iunlock(v->f->ip);
+               
 
                
                 log_write(bp);
@@ -196,7 +195,7 @@ int  munmap(uint64 addr,uint len){
        }
 
     }
-
+    iunlock(v->f->ip);
     end_op();
 
     v->lenth-=len;
