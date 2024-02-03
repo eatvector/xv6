@@ -20,56 +20,11 @@ struct {
   struct file file[NFILE];
 } ftable;
 
-struct {
-  struct spinlock lock;
-  struct vma vma[NVMA];
-}vmatable;
-
-
-struct vma*vmaalloc(void){
-  acquire(&vmatable.lock);
-  for(int i=0;i<NVMA;i++){
-     if(vmatable.vma[i].isalloc==0){
-        vmatable.vma[i].isalloc=1;
-        release(&vmatable.lock);
-        return &vmatable.vma[i];
-     }
-  }
-  release(&vmatable.lock);
-  return 0;
-}
-
-void vmafree(struct vma*vma){
-    acquire(&vmatable.lock);
-    vma->addr=0;
-    vma->f=0;
-    vma->off=0;
-    vma->isalloc=0;
-    vma->lenth=0;
-    vma->flags=0;
-    vma->prot=0;
-    vma->inmemory=0;
-    release(&vmatable.lock);
-}
-
-void vmacopy(struct vma*src,struct vma *dst){
-    dst->addr=src->addr;
-    // Don't forget to increment the reference count for a VMA's struct file. 
-    // i refs(how many pointer point to it)
-    dst->f=filedup(src->f);
-    dst->flags=src->flags;
-    dst->lenth=src->lenth;
-    dst->prot=src->prot;
-    dst->off=src->off;
-    dst->inmemory=src->inmemory;
-}
-
-
 void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
-  initlock(&vmatable.lock,"vmatable");
+ // initlock(&vmatable.lock,"vmatable");
 }
 
 // Allocate a file structure.

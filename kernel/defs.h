@@ -27,10 +27,6 @@ void            consputc(int);
 int             exec(char*, char**);
 
 // file.c
-struct vma*vmaalloc(void);
-void vmafree(struct vma*vma);
-void vmacopy(struct vma*src,struct vma *dst);
-
 
 struct file*    filealloc(void);
 void            fileclose(struct file*);
@@ -206,6 +202,13 @@ void            virtio_disk_intr(void);
 int mmap(uint64);
 int  munmap(uint64 addr,uint len);
 void munmapall();
+
+
+//vma.c
+void vmainit(void);
+struct vma*vmaalloc(void);
+void vmafree(struct vma*vma);
+void vmacopy(struct vma*src,struct vma *dst);
 
 
 

@@ -302,7 +302,7 @@ fork(void)
  // we fuck panic in fileclose
  np->mmapbitmap=p->mmapbitmap;
 
-  for(int i=0;i<NVMA;i++){
+  for(int i=0;i<NPMMAPVMA;i++){
      if(p->mapregiontable[i]==0){
        np->mapregiontable[i]=0;
      }else{
@@ -317,7 +317,7 @@ fork(void)
 
   //mmap region
   if(uvmmmapcopy(p->pagetable,np->pagetable,p->mapregiontable)==-1){
-    for(int i=0;i<NVMA;i++){
+    for(int i=0;i<NPMMAPVMA;i++){
         if(np->mapregiontable[i]){
                vmafree(np->mapregiontable[i]);
         }

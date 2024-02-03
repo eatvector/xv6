@@ -586,7 +586,7 @@ uint64 sys_mmap(void){
     vma->flags=flags;
 
    //mapregiontable always have enough space
-    for(int i=0;i<NVMA;i++){
+    for(int i=0;i<NPMMAPVMA;i++){
         if(p->mapregiontable[i]==0){
           p->mapregiontable[i]=vma;
           break;

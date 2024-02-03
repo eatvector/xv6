@@ -11,6 +11,8 @@ struct vma{
   uint off;
   int prot;
   int flags;
+  struct inode *ip;//for exec
+  uint filesz;// for exec
   struct file*f;
   int isalloc;
   uint8 inmemory;

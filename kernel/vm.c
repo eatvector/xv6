@@ -368,7 +368,7 @@ int uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]){
     int share;
 
 
-    for(i=0;i<NVMA;i++){
+    for(i=0;i<NPMMAPVMA;i++){
       if(oldvmas[i]==0){
         continue;
       }

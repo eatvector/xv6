@@ -20,7 +20,7 @@ int mmap(uint64 addr){
     struct vma*vi=0;
     struct vma*v=0;
     
-    for(int i=0;i<NVMA;i++){
+       for(int i=0;i<NPMMAPVMA;i++){
         if((vi=p->mapregiontable[i])!=0){
             if(addr>=(uint64)(vi->addr)&&addr<(uint64)(vi->addr)+vi->lenth){
                 v=vi;
@@ -125,7 +125,7 @@ int  munmap(uint64 addr,uint len){
 
     int i=0;
 
-    for(;i<NVMA;i++){
+    for(;i<NPMMAPVMA;i++){
         if((vi=p->mapregiontable[i])!=0){
             if(addr>=(uint64)(vi->addr)&&addr<(uint64)(vi->addr)+vi->lenth){
                 v=vi;
@@ -223,7 +223,7 @@ void munmapall(){
     
     struct proc *p=myproc();
     struct vma *v=0;
-    for(int i=0;i<NVMA;i++){
+    for(int i=0;i<NPMMAPVMA;i++){
         if((v=p->mapregiontable[i])!=0){
           munmap(v->addr,v->lenth);
         }

@@ -39,12 +39,18 @@ exec(char *path, char **argv)
   //for mmap file do ssomething
   munmapall();
 
+
+  //clear the exec vma?
+
   if((ip = namei(path)) == 0){
     end_op();
     return -1;
   }
   ilock(ip);
 
+  // 
+  int v=0;
+  
   // Check ELF header
   if(readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
     goto bad;
@@ -68,6 +74,9 @@ exec(char *path, char **argv)
     if(ph.vaddr % PGSIZE != 0)
       goto bad;
     uint64 sz1;
+
+    //remember the file info
+
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
       goto bad;
     sz = sz1;
