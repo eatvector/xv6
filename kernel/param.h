@@ -11,6 +11,6 @@
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
 #define FSSIZE       2000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
-#define NVMA         2000
+#define NVMA         4000
 #define NPMMAPVMA     16
-#define NPEXECVMA     20
+#define NPEXECVMA     50

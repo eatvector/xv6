@@ -83,6 +83,7 @@ sys_read(void)
 uint64
 sys_write(void)
 {
+  
   struct file *f;
   int n;
   uint64 p;
@@ -91,7 +92,7 @@ sys_write(void)
   argint(2, &n);
   if(argfd(0, 0, &f) < 0)
     return -1;
-
+  
   return filewrite(f, p, n);
 }
 

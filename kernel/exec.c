@@ -37,8 +37,21 @@ exec(char *path, char **argv)
   //lost all the map file
   //munmapall();
   //for mmap file do ssomething
+  // clear all the vma;
   munmapall();
 
+
+  //did mmap need to modify like this.
+  for(int i=0;i<NPEXECVMA;i++){
+    if(p->execvma[i]){
+      if(p->execvma[i]->ip){
+         iput(p->execvma[i]->ip);
+      }
+      vmafree(p->execvma[i]);
+      p->execvma[i]=0;
+    }
+  }
+  
 
   //clear the exec vma?
 
@@ -48,8 +61,10 @@ exec(char *path, char **argv)
   }
   ilock(ip);
 
+   
+
   // 
-  int v=0;
+  int j=0;
   
   // Check ELF header
   if(readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
@@ -76,12 +91,27 @@ exec(char *path, char **argv)
     uint64 sz1;
 
     //remember the file info
+    p->execvma[j]=vmaalloc();
+    p->execvma[j]->addr=ph.vaddr;
+    p->execvma[j]->ip=idup(ip);
+    p->execvma[j]->filesz=ph.filesz;
+    p->execvma[j]->memsz=ph.memsz;
+    p->execvma[j]->off=ph.off;
+    p->execvma[j]->flags=flags2perm(ph.flags)|PTE_R|PTE_U;
+    j++;
 
+
+    sz1= ph.vaddr + ph.memsz;
+    if(sz1>sz){
+      sz=sz1;
+    }
+
+  /*
     if((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz, flags2perm(ph.flags))) == 0)
       goto bad;
     sz = sz1;
     if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
-      goto bad;
+      goto bad;*/
   }
   iunlockput(ip);
   end_op();
@@ -156,6 +186,65 @@ exec(char *path, char **argv)
   return -1;
 }
 
+//0xc lost instruct 
+// when have page fault do this
+int exechandler(uint64 va){
+  va=PGROUNDDOWN(va);
+   struct proc*p=myproc();
+   struct vma*vma;
+   struct inode*ip;
+
+  begin_op();
+
+  for(int i=0;i<NPEXECVMA;i++){
+       vma=p->execvma[i];
+     
+       if(vma){
+        if(va>=vma->addr&&va<vma->addr+vma->memsz){
+             
+             char *mem=kalloc();
+             if(mem==0){
+               return -1;
+             }
+             memset(mem,0,PGSIZE);
+             if(mappages(p->pagetable,va,PGSIZE,(uint64)mem,vma->flags)==-1){
+                  goto bad;
+             }
+             ip=vma->ip;
+             ilock(ip);
+             //i read more data to this file
+             //here we have a fucking bug.
+             uint sz;
+             uint off=vma->off+va-vma->addr;
+             if(off<(vma->off+vma->filesz)){
+               sz=vma->off+vma->filesz-off;
+              
+               if(PGSIZE<sz){
+                 sz=PGSIZE;
+               }
+                
+                printf("load from off %x sz %x\n",off,sz);
+                if(loadseg(p->pagetable,va,ip,off ,sz)<0){
+                  printf("load seg error\n");
+                  uvmunmap(p->pagetable,va,1,1);
+                  iunlock(ip);
+                  goto bad;
+                }
+             }
+          iunlock(ip);
+          end_op();
+          return 0;
+        }
+       }else{
+         break;
+       }
+  }
+
+  bad:
+  end_op();
+  return -1;
+}
+
 // Load a program segment into pagetable at virtual address va.
 // va must be page-aligned
 // and the pages from va to va+sz must already be mapped.
@@ -165,6 +254,8 @@ loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset, uint sz
 {
   uint i, n;
   uint64 pa;
+
+  //printf("offset is what %x\n",offset);
 
   for(i = 0; i < sz; i += PGSIZE){
     pa = walkaddr(pagetable, va + i);

@@ -67,7 +67,7 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else if(r_scause()==0xd||r_scause()==0xf){
+  } else if(r_scause()==0xd||r_scause()==0xf||r_scause()==0xc){
     // if we have a load page fault
       // printf("lost page at %p\n",r_stval());
      
@@ -81,10 +81,22 @@ usertrap(void)
            printf("usertrap():load page fault\n");
            setkilled(p);
        }else if(ret==1){
-            if(uvmcow(p->pagetable,va)==-1){
-              printf("can not handle this ");
-              setkilled(p);
-            }
+             
+          ret=uvmcow(p->pagetable,va);
+          if(ret==-1){
+            printf("can not handle this ");
+            setkilled(p);
+          }else if(ret==1){
+            // may be exec 
+              if(exechandler(va)!=0){
+                  printf("fck exec\n");
+                  printf("can not handle this va :%p",va);
+                  printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+                  printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+                  printf("            name=%s\n",p->name);
+                  setkilled(p);
+              }
+          }
        }
 
 

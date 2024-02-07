@@ -320,8 +320,16 @@ ilock(struct inode *ip)
 void
 iunlock(struct inode *ip)
 {
-  if(ip == 0 || !holdingsleep(&ip->lock) || ip->ref < 1)
+  if(ip == 0 || !holdingsleep(&ip->lock) || ip->ref < 1){
+    if(ip==0){
+      printf("zero\n");
+    }else if (!holdingsleep(&ip->lock)){
+      printf("not hold lock\n");
+    }else{
+     printf("ref cnt less than one\n");
+    }
     panic("iunlock");
+  }
 
   releasesleep(&ip->lock);
 }
@@ -683,6 +691,7 @@ namex(char *path, int nameiparent, char *name)
       iunlock(ip);
       return ip;
     }
+    //dirlookup will increase the ref cnt.
     if((next = dirlookup(ip, name, 0)) == 0){
       iunlockput(ip);
       return 0;

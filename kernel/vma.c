@@ -1,8 +1,8 @@
+#include "types.h"
 #include "spinlock.h"
 #include "vma.h"
 #include "param.h"
 #include "defs.h"
-
 
 struct {
   struct spinlock lock;
@@ -56,6 +56,7 @@ void vmacopy(struct vma*src,struct vma *dst){
     dst->lenth=src->lenth;
     dst->prot=src->prot;
     dst->off=src->off;
+    dst->memsz=src->memsz;
     dst->filesz=src->filesz;
     if(src->ip){
       dst->ip=idup(src->ip);

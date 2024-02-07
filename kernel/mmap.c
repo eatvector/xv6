@@ -30,7 +30,8 @@ int mmap(uint64 addr){
     }
 
     if(v==0){
-        return -1;
+        // not in mmap region
+        return 1;
     }
 
     if(addr>=PGROUNDUP(v->f->ip->size)+v->addr){

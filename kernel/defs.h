@@ -10,6 +10,8 @@ struct stat;
 struct superblock;
 struct vma;
 
+#include"riscv.h"
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -25,6 +27,7 @@ void            consputc(int);
 
 // exec.c
 int             exec(char*, char**);
+int             exechandler(uint64 va);
 
 // file.c
 

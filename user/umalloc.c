@@ -25,7 +25,7 @@ void
 free(void *ap)
 {
   Header *bp, *p;
-
+  
   bp = (Header*)ap - 1;
   for(p = freep; !(bp > p && bp < p->s.ptr); p = p->s.ptr)
     if(p >= p->s.ptr && (bp > p || bp < p->s.ptr))
@@ -71,7 +71,13 @@ malloc(uint nbytes)
     base.s.ptr = freep = prevp = &base;
     base.s.size = 0;
   }
+
+  //printf("prevp %x\n",prevp);
+  //p=prevp->s.ptr;
+  //printf("can this pass%p");
+
   for(p = prevp->s.ptr; ; prevp = p, p = p->s.ptr){
+    //printf("in while\n");
     if(p->s.size >= nunits){
       if(p->s.size == nunits)
         prevp->s.ptr = p->s.ptr;

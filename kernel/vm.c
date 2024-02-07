@@ -148,8 +148,8 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 {
   uint64 a, last;
   pte_t *pte;
-
-
+/* if(pagetable!=kernel_pagetable)
+    printf("trace map:pid :%d va%x\n",myproc()->pid,va);*/
   /*if(pa>PHYSTOP){
     printf("va at %p\n");
     panic("pa is too big\n");
@@ -164,6 +164,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
     if(*pte & PTE_V){
+      //printf("pid :%d va%x\n",myproc()->pid,va);
       panic("mappages: remap");
     }
 
@@ -193,10 +194,14 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     panic("uvmunmap: not aligned");
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
-    if((pte = walk(pagetable, a, 0)) == 0)
-      panic("uvmunmap: walk");
-    if((*pte & PTE_V) == 0)
-      panic("uvmunmap: not mapped");
+    if((pte = walk(pagetable, a, 0)) == 0){
+      //panic("uvmunmap: walk");
+      continue;
+    }
+    if((*pte & PTE_V) == 0){
+      //panic("uvmunmap: not mapped");
+      continue;
+    }
 
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
@@ -324,6 +329,8 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 // physical memory.
 // returns 0 on success, -1 on failure.
 // frees any allocated pages on failure.
+
+//to support my exec.
 int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
@@ -333,10 +340,14 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
-    if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
+    if((pte = walk(old, i, 0)) == 0){
+      //panic("uvmcopy: pte should exist");
+      continue;
+    }
+    if((*pte & PTE_V) == 0){
+      //panic("uvmcopy: page not present");
+      continue;
+    }
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
@@ -474,8 +485,12 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
+    if(pa0==0){
+      if(exechandler(va0)!=0){
+        return -1;
+      }
+    pa0 = walkaddr(pagetable, va0);
+  }
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
@@ -499,6 +514,14 @@ copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(srcva);
     pa0 = walkaddr(pagetable, va0);
+    if(pa0==0){
+      if(exechandler(va0)!=0){
+        return -1;
+      }
+    pa0 = walkaddr(pagetable, va0);
+  }
+
+
     if(pa0 == 0)
       return -1;
     n = PGSIZE - (srcva - va0);
@@ -526,8 +549,14 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   while(got_null == 0 && max > 0){
     va0 = PGROUNDDOWN(srcva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
+   if(pa0==0){
+      if(exechandler(va0)!=0){
+        return -1;
+      }
+    pa0 = walkaddr(pagetable, va0);
+  }
+
+
     n = PGSIZE - (srcva - va0);
     if(n > max)
       n = max;
@@ -563,7 +592,7 @@ int uvmcow(pagetable_t pagetable,uint64 va){
     //printf("cow call\n");
     
     if(va>=MAXVA){
-      return 1;
+      return -1;
     }
     // if is a cow page
     if((pte = walk( pagetable, va, 0)) !=0&&(*pte)&PTE_COW){
@@ -573,7 +602,7 @@ int uvmcow(pagetable_t pagetable,uint64 va){
            mem=(char *)pa;
         }else{
            if((mem=kalloc())==0){
-              return 1;
+              return -1;
            }
            memmove(mem,(char *)pa,PGSIZE);
         }
@@ -589,12 +618,12 @@ int uvmcow(pagetable_t pagetable,uint64 va){
 
         if(mappages(pagetable, a, PGSIZE, (uint64)mem, flags) != 0){
             kfree(mem);
-            return 1;
+            return -1;
         }
         return 0;
     }else {
       //not a cow page or pte not exit
-        return -1;
+        return 1;
     }
 }
 

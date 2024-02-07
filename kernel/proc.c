@@ -284,6 +284,8 @@ fork(void)
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
+ 
+   printf("  pid :%d do fork\n",myproc()->pid);
 
   // Allocate process.
   if((np = allocproc()) == 0){
@@ -327,6 +329,21 @@ fork(void)
   }
 
 
+   printf("pid %d do fork middle \n",myproc()->pid);
+  //for exec region
+  for(int i=0;i<NPEXECVMA;i++){
+    if(p->execvma[i]==0){
+      np->execvma[i]=0;
+    }else{
+       np->execvma[i]=vmaalloc();
+       if(np->execvma[i]==0){
+         release(&np->lock);
+         return -1;
+       }
+       vmacopy(p->execvma[i],np->execvma[i]);
+    }
+  }
+
 // data ,code ,heap
   np->sz = p->sz;
 
@@ -355,7 +372,8 @@ fork(void)
   acquire(&np->lock);
   np->state = RUNNABLE;
   release(&np->lock);
-
+  
+  printf("pid :%d fork end \n",myproc()->pid);
 
   return pid;
 }
@@ -387,8 +405,9 @@ exit(int status)
     panic("init exiting");
 
   // for mmap
+  // have bigin_op and end_op bugs.
    munmapall();
-  
+
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){
@@ -399,6 +418,17 @@ exit(int status)
   }
 
   begin_op();
+  for(int i=0;i<NPEXECVMA;i++){
+    if(p->execvma[i]){
+      if(p->execvma[i]->ip){
+         //ilock(p->execvma[i]->ip);
+         iput(p->execvma[i]->ip);
+         //iunlock(p->execvma[i]->ip);
+      }
+      vmafree(p->execvma[i]);
+      p->execvma[i]=0;
+    }
+  }
   iput(p->cwd);
   end_op();
   p->cwd = 0;
@@ -524,8 +554,10 @@ sched(void)
 
   if(!holding(&p->lock))
     panic("sched p->lock");
-  if(mycpu()->noff != 1)
+  if(mycpu()->noff != 1){
+    printf("noff :%d\n",mycpu()->noff);
     panic("sched locks");
+  }
   if(p->state == RUNNING)
     panic("sched running");
   if(intr_get())
