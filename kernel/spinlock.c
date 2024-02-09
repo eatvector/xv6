@@ -8,6 +8,12 @@
 #include "proc.h"
 #include "defs.h"
 
+
+//int acquirecnt;
+//int releasecnt;
+//char *spinmem[100];
+
+
 void
 initlock(struct spinlock *lk, char *name)
 {
@@ -40,6 +46,7 @@ acquire(struct spinlock *lk)
 
   // Record info about lock acquisition for holding() and debugging.
   lk->cpu = mycpu();
+ // acquirecnt++;
 }
 
 // Release the lock.
@@ -57,6 +64,7 @@ release(struct spinlock *lk)
   // and that loads in the critical section occur strictly before
   // the lock is released.
   // On RISC-V, this emits a fence instruction.
+  //avoid move store instruction after the lock is released.
   __sync_synchronize();
 
   // Release the lock, equivalent to lk->locked = 0.
@@ -69,6 +77,8 @@ release(struct spinlock *lk)
   __sync_lock_release(&lk->locked);
 
   pop_off();
+  //printf("release %s\n",lk->name);
+ // releasecnt++;
 }
 
 // Check whether this cpu is holding the lock.

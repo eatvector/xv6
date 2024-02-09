@@ -285,7 +285,7 @@ fork(void)
   struct proc *np;
   struct proc *p = myproc();
  
-   printf("  pid :%d do fork\n",myproc()->pid);
+   
 
   // Allocate process.
   if((np = allocproc()) == 0){
@@ -329,7 +329,7 @@ fork(void)
   }
 
 
-   printf("pid %d do fork middle \n",myproc()->pid);
+  
   //for exec region
   for(int i=0;i<NPEXECVMA;i++){
     if(p->execvma[i]==0){
@@ -373,7 +373,6 @@ fork(void)
   np->state = RUNNABLE;
   release(&np->lock);
   
-  printf("pid :%d fork end \n",myproc()->pid);
 
   return pid;
 }
@@ -555,7 +554,7 @@ sched(void)
   if(!holding(&p->lock))
     panic("sched p->lock");
   if(mycpu()->noff != 1){
-    printf("noff :%d\n",mycpu()->noff);
+   // printf("noff :%d\n",mycpu()->noff);
     panic("sched locks");
   }
   if(p->state == RUNNING)

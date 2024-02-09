@@ -3002,7 +3002,11 @@ countfree()
   }
 
   if(pid == 0){
+    printf("kid process\n");
     close(fds[0]);
+    
+
+    printf("kid do while\n");
     
     while(1){
       uint64 a = (uint64) sbrk(4096);
@@ -3012,13 +3016,15 @@ countfree()
 
       // modify the memory to make sure it's really allocated.
       *(char *)(a + 4096 - 1) = 1;
-
+      // printf("****kid write\n");
       // report back one more page.
       if(write(fds[1], "x", 1) != 1){
         printf("write() failed in countfree()\n");
         exit(1);
       }
+     // printf("kid write end\n");
     }
+    printf("end while\n");
 
     exit(0);
   }
@@ -3026,9 +3032,14 @@ countfree()
   close(fds[1]);
 
   int n = 0;
+
+  printf("father process\n");
+  printf("father do while\n");
   while(1){
     char c;
+   // printf("***father read\n");
     int cc = read(fds[0], &c, 1);
+    //printf("father read end\n");
     if(cc < 0){
       printf("read() failed in countfree()\n");
       exit(1);
@@ -3037,6 +3048,7 @@ countfree()
       break;
     n += 1;
   }
+  printf("end while\n");
 
   close(fds[0]);
   wait((int*)0);

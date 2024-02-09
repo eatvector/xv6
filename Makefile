@@ -197,7 +197,7 @@ UPROGS=\
 	$U/_mmaptest\
 	$U/_mymmaptest\
 	$U/_mapsharedtest\
-	$U/_pipe1\
+	$U/_pipe\
 
 
 
