@@ -2480,6 +2480,8 @@ sbrkbugs(char *s)
     exit(0);
   }
   wait(0);
+  printf("fccccc\n");
+
 
   pid = fork();
   if(pid < 0){
