@@ -109,11 +109,20 @@ struct proc {
   pagetable_t pagetable;       // User page table
   
   // for recode mmap
-  struct vma*mapregiontable[NVMA];
+  //struct vma*mapregiontable[NVMA];
   uint16 mmapbitmap;
 
 
-  struct vma*execvma[NPEXECVMA];
+  //struct vma*execvma[NPEXECVMA];
+
+
+ //[0,NPMMAPVMA-1]  for mmap
+ //[NPMMAPVMA,NPMMAPVAM+NPHEAPVMA-1]  for heap
+ //[NPMMAPVAM+NPHEAPVMA,NPVMA-1] for exec.
+  struct vma*vma[NPVMA];
+
+
+
   
   
  

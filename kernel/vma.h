@@ -23,6 +23,7 @@ struct vma{
   uint64 memsz; //for exec
 
   //for sbrk
+  uint64 end;
 };
 
 #define CONSOLE 1

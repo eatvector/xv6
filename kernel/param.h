@@ -13,4 +13,6 @@
 #define MAXPATH      128   // maximum file path name
 #define NVMA         4000
 #define NPMMAPVMA     16
+#define NPHEAPVMA      1
 #define NPEXECVMA     50
+#define NPVMA (NPMMAPVMA+NPHEAPVMA+NPEXECVMA)

@@ -292,23 +292,23 @@ uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
     //we have to modify the exec field.
     struct proc*p=myproc();
     uint64 va=PGROUNDUP(newsz);
-    int i=NPEXECVMA-1;
-    for(;i>=0;i--){
-       if(p->execvma[i]){
+    int i=NPVMA-1;
+    for(;i>=NPMMAPVMA+NPHEAPVMA;i--){
+       if(p->vma[i]){
          break;
        }
     }
 
-    for(;i>=0;i--){
-      if(va>p->execvma[i]->addr){
-        uint64 memsz=va-p->execvma[i]->addr;
-       if(memsz<p->execvma[i]->memsz){
-         p->execvma[i]->memsz=memsz;
+    for(;i>=NPMMAPVMA+NPHEAPVMA;i--){
+      if(va>p->vma[i]->addr){
+        uint64 memsz=va-p->vma[i]->addr;
+       if(memsz<p->vma[i]->memsz){
+         p->vma[i]->memsz=memsz;
        }
       break;
       }else{
-        vmafree(p->execvma[i]);
-        p->execvma[i]=0;
+        vmafree(p->vma[i]);
+        p->vma[i]=0;
       }
     }
   }

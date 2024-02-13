@@ -43,13 +43,13 @@ exec(char *path, char **argv)
 
 
   //did mmap need to modify like this.
-  for(int i=0;i<NPEXECVMA;i++){
-    if(p->execvma[i]){
-      if(p->execvma[i]->ip){
-         iput(p->execvma[i]->ip);
+  for(int i=NPMMAPVMA+NPHEAPVMA;i<NPVMA;i++){
+    if(p->vma[i]){
+      if(p->vma[i]->ip){
+         iput(p->vma[i]->ip);
       }
-      vmafree(p->execvma[i]);
-      p->execvma[i]=0;
+      vmafree(p->vma[i]);
+      p->vma[i]=0;
     }
   }
   
@@ -64,8 +64,8 @@ exec(char *path, char **argv)
 
    
 
-  // 
-  int j=0;
+  // exec vma start from here.
+  int j=NPMMAPVMA+NPHEAPVMA;
   
   // Check ELF header
   if(readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
@@ -94,21 +94,21 @@ exec(char *path, char **argv)
     //remember the file info
     // error handler
     //free the vma
-    if(j>=NPEXECVMA){
+    if(j>=NPVMA){
       goto bad;
     }
 
-    p->execvma[j]=vmaalloc();
+    p->vma[j]=vmaalloc();
 
-    if(p->execvma[j]==0){
+    if(p->vma[j]==0){
       goto bad;
     }
-    p->execvma[j]->addr=ph.vaddr;
-    p->execvma[j]->ip=idup(ip);
-    p->execvma[j]->filesz=ph.filesz;
-    p->execvma[j]->memsz=ph.memsz;
-    p->execvma[j]->off=ph.off;
-    p->execvma[j]->flags=flags2perm(ph.flags)|PTE_R|PTE_U;
+    p->vma[j]->addr=ph.vaddr;
+    p->vma[j]->ip=idup(ip);
+    p->vma[j]->filesz=ph.filesz;
+    p->vma[j]->memsz=ph.memsz;
+    p->vma[j]->off=ph.off;
+    p->vma[j]->flags=flags2perm(ph.flags)|PTE_R|PTE_U;
     j++;
     
 
@@ -207,8 +207,8 @@ int exechandler(uint64 va){
    struct inode*ip;
    begin_op();
 
-  for(int i=0;i<NPEXECVMA;i++){
-       vma=p->execvma[i];
+  for(int i=NPMMAPVMA+NPHEAPVMA;i<NPVMA;i++){
+       vma=p->vma[i];
        if(vma){
         if(va>=vma->addr&&va<vma->addr+vma->memsz){
            

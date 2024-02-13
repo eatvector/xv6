@@ -21,13 +21,17 @@ int mmap(uint64 addr){
     struct vma*v=0;
     
        for(int i=0;i<NPMMAPVMA;i++){
-        if((vi=p->mapregiontable[i])!=0){
+        if((vi=p->vma[i])!=0){
             if(addr>=(uint64)(vi->addr)&&addr<(uint64)(vi->addr)+vi->lenth){
                 v=vi;
                 break;
             }
         }
     }
+
+
+
+
 
     if(v==0){
         // not in mmap region
@@ -139,7 +143,7 @@ int  munmap(uint64 addr,uint len){
     int i=0;
 
     for(;i<NPMMAPVMA;i++){
-        if((vi=p->mapregiontable[i])!=0){
+        if((vi=p->vma[i])!=0){
             if(addr>=(uint64)(vi->addr)&&addr<(uint64)(vi->addr)+vi->lenth){
                 v=vi;
                 break;
@@ -222,7 +226,7 @@ int  munmap(uint64 addr,uint len){
        fileclose(v->f);
        vmafree(v);
        // free the fuck bitbmap
-       p->mapregiontable[i]=0;
+       p->vma[i]=0;
        int mask=(1<<(addr-MMAPADDR)/MMAPMAXLENTH);
        p->mmapbitmap|=mask;
     }
@@ -237,7 +241,7 @@ void munmapall(){
     struct proc *p=myproc();
     struct vma *v=0;
     for(int i=0;i<NPMMAPVMA;i++){
-        if((v=p->mapregiontable[i])!=0){
+        if((v=p->vma[i])!=0){
           munmap(v->addr,v->lenth);
         }
     }

@@ -608,8 +608,8 @@ uint64 sys_mmap(void){
 
    //mapregiontable always have enough space
     for(int i=0;i<NPMMAPVMA;i++){
-        if(p->mapregiontable[i]==0){
-          p->mapregiontable[i]=vma;
+        if(p->vma[i]==0){
+          p->vma[i]=vma;
           break;
         }
     }

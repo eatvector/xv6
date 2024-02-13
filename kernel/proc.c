@@ -253,11 +253,12 @@ userinit(void)
 
   p->state = RUNNABLE;
 
+  /*
    //for the initcode,we do hack
   p->execvma[0]=vmaalloc();
   p->execvma[0]->addr=0;
   p->execvma[0]->memsz=PGSIZE;
-
+  */
 
   release(&p->lock);
 }
@@ -311,23 +312,23 @@ fork(void)
  np->mmapbitmap=p->mmapbitmap;
 
   for(int i=0;i<NPMMAPVMA;i++){
-     if(p->mapregiontable[i]==0){
-       np->mapregiontable[i]=0;
+     if(p->vma[i]==0){
+       np->vma[i]=0;
      }else{
-       np->mapregiontable[i]=vmaalloc();
-       if(np->mapregiontable[i]==0){
+       np->vma[i]=vmaalloc();
+       if(np->vma[i]==0){
           release(&np->lock);
            return -1;
        }
-       vmacopy(p->mapregiontable[i],np->mapregiontable[i]);
+       vmacopy(p->vma[i],np->vma[i]);
      }
   }
 
   //mmap region
-  if(uvmmmapcopy(p->pagetable,np->pagetable,p->mapregiontable)==-1){
+  if(uvmmmapcopy(p->pagetable,np->pagetable,p->vma)==-1){
     for(int i=0;i<NPMMAPVMA;i++){
-        if(np->mapregiontable[i]){
-               vmafree(np->mapregiontable[i]);
+        if(np->vma[i]){
+               vmafree(np->vma[i]);
         }
     }
     release(&np->lock);
@@ -335,16 +336,16 @@ fork(void)
   }
  
   //for exec region
-  for(int i=0;i<NPEXECVMA;i++){
-    if(p->execvma[i]==0){
-      np->execvma[i]=0;
+  for(int i=NPMMAPVMA+NPHEAPVMA;i<NPVMA;i++){
+    if(p->vma[i]==0){
+      np->vma[i]=0;
     }else{
-       np->execvma[i]=vmaalloc();
-       if(np->execvma[i]==0){
+       np->vma[i]=vmaalloc();
+       if(np->vma[i]==0){
          release(&np->lock);
          return -1;
        }
-       vmacopy(p->execvma[i],np->execvma[i]);
+       vmacopy(p->vma[i],np->vma[i]);
     }
   }
 
@@ -421,15 +422,15 @@ exit(int status)
   }
 
   begin_op();
-  for(int i=0;i<NPEXECVMA;i++){
-    if(p->execvma[i]){
-      if(p->execvma[i]->ip){
+  for(int i=NPMMAPVMA+NPHEAPVMA;i<NPVMA;i++){
+    if(p->vma[i]){
+      if(p->vma[i]->ip){
          //ilock(p->execvma[i]->ip);
-         iput(p->execvma[i]->ip);
+         iput(p->vma[i]->ip);
          //iunlock(p->execvma[i]->ip);
       }
-      vmafree(p->execvma[i]);
-      p->execvma[i]=0;
+      vmafree(p->vma[i]);
+      p->vma[i]=0;
     }
   }
   iput(p->cwd);
