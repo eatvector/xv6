@@ -333,9 +333,7 @@ fork(void)
     release(&np->lock);
     return -1;
   }
-
-
-  
+ 
   //for exec region
   for(int i=0;i<NPEXECVMA;i++){
     if(p->execvma[i]==0){
