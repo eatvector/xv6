@@ -92,6 +92,10 @@ filestat(struct file *f, uint64 addr)
 {
   struct proc *p = myproc();
   struct stat st;
+
+  /*if(pagefaulthandler(addr,sizeof(st),1)==-1){
+    return -1;
+  }*/
   
   if(f->type == FD_INODE || f->type == FD_DEVICE){
     ilock(f->ip);
@@ -114,6 +118,8 @@ fileread(struct file *f, uint64 addr, int n)
   if(f->readable == 0)
     return -1;
 
+
+
   if(f->type == FD_PIPE){
     r = piperead(f->pipe, addr, n);
   } else if(f->type == FD_DEVICE){
@@ -121,6 +127,12 @@ fileread(struct file *f, uint64 addr, int n)
       return -1;
     r = devsw[f->major].read(1, addr, n);
   } else if(f->type == FD_INODE){
+
+    if(pagefaulthandler(addr,n,1)==-1){
+       return -1;
+    }
+
+
     ilock(f->ip);
     if((r = readi(f->ip, 1, addr, f->off, n)) > 0)
       f->off += r;

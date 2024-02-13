@@ -14,6 +14,13 @@ fetchaddr(uint64 addr, uint64 *ip)
   struct proc *p = myproc();
   if(addr >= p->sz || addr+sizeof(uint64) > p->sz) // both tests needed, in case of overflow
     return -1;
+
+
+  //should not be init code,we don't have elf enformation
+  if(pagefaulthandler(addr,sizeof(*ip),0)==-1){
+    return -1;
+  }
+
   if(copyin(p->pagetable, (char *)ip, addr, sizeof(*ip)) != 0)
     return -1;
   return 0;
@@ -25,6 +32,16 @@ int
 fetchstr(uint64 addr, char *buf, int max)
 {
   struct proc *p = myproc();
+
+  //we nned to modify here.
+  // for initcode,we have to do this.
+  if(addr+max>=p->sz){
+     max=p->sz-addr;
+  }
+
+  if(pagefaulthandler(addr,max,0)==-1){
+    return -1;
+  }
   if(copyinstr(p->pagetable, buf, addr, max) < 0)
     return -1;
   return strlen(buf);

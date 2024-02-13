@@ -253,6 +253,12 @@ userinit(void)
 
   p->state = RUNNABLE;
 
+   //for the initcode,we do hack
+  p->execvma[0]=vmaalloc();
+  p->execvma[0]->addr=0;
+  p->execvma[0]->memsz=PGSIZE;
+
+
   release(&p->lock);
 }
 
@@ -460,6 +466,10 @@ wait(uint64 addr)
   struct proc *pp;
   int havekids, pid;
   struct proc *p = myproc();
+
+  /* if(pagefaulthandler(addr,sizeof(int),1)==-1){
+    return -1;
+  }*/
 
   acquire(&wait_lock);
 

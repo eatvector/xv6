@@ -187,6 +187,7 @@ int             copyinstr(pagetable_t, char *, uint64, uint64);
 int             uvmmmapcopy(pagetable_t old, pagetable_t new,struct vma*oldvmas[]);
 int             uvmcow(pagetable_t pagetable,uint64 va);
 
+
 // plic.c
 void            plicinit(void);
 void            plicinithart(void);
@@ -212,6 +213,7 @@ void vmainit(void);
 struct vma*vmaalloc(void);
 void vmafree(struct vma*vma);
 void vmacopy(struct vma*src,struct vma *dst);
+int pagefaulthandler(uint64 va,uint64 n,int cow);
 
 
 

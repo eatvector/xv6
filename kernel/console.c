@@ -60,6 +60,11 @@ consolewrite(int user_src, uint64 src, int n)
 {
   int i;
 
+
+  /*if(user_src&&pagefaulthandler(src,n,0)==-1){
+    return -1;
+  }*/
+
   for(i = 0; i < n; i++){
     char c;
     if(either_copyin(&c, user_src, src+i, 1) == -1)
@@ -82,6 +87,13 @@ consoleread(int user_dst, uint64 dst, int n)
   uint target;
   int c;
   char cbuf;
+
+
+  /*if(pagefaulthandler(dst,n,1)==-1){
+    return -1;
+  }*/
+
+  
 
   target = n;
   acquire(&cons.lock);

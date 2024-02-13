@@ -23,6 +23,7 @@ int
 exec(char *path, char **argv)
 {
 
+  //printf("sys_exec call\n");
   char *s, *last;
   int i, off;
   uint64 argc, sz = 0, sp, ustack[MAXARG], stackbase;
@@ -200,52 +201,32 @@ exec(char *path, char **argv)
 //0xc lost instruct 
 // when have page fault do this
 int exechandler(uint64 va){
-  //printf("handle exec at va %x   noff :%d\n",va,mycpu()->noff);
-
-
-
   va=PGROUNDDOWN(va);
    struct proc*p=myproc();
    struct vma*vma;
    struct inode*ip;
-
-   //printf("handle exec at va %x   noff :%d\n",va,mycpu()->noff);
-         /* extern int acquirecnt;
-          extern int releasecnt;
-          //extern char *spinmem;
-          extern uint64 pipeacquirecnt;
-          extern uint64 pipereleasecnt;
-
-         
-          if(acquirecnt!=releasecnt){
-            printf("start panic at va %x   acquirecnt %x releasecnt %x\n",va,acquirecnt,releasecnt);
-            printf("pipe lock acquire %x release %x\n",pipeacquirecnt,pipereleasecnt);
-      
-           //printf the lock info
-
-            panic("fffff\n");
-          }*/
-     
-
-  begin_op();
+   begin_op();
 
   for(int i=0;i<NPEXECVMA;i++){
        vma=p->execvma[i];
-
-        
        if(vma){
         if(va>=vma->addr&&va<vma->addr+vma->memsz){
-             
+           
+             pte_t *pte=walk(p->pagetable,va,0);
+             //should not exit.
+             if(pte&&(*pte&PTE_V)){
+               goto bad;
+             }
+
              char *mem=kalloc();
              if(mem==0){
-               return -1;
+                goto bad;
              }
              memset(mem,0,PGSIZE);
-             //printf("pid %d map page at va %x\n",p->pid,va);
              if(mappages(p->pagetable,va,PGSIZE,(uint64)mem,vma->flags)==-1){
+                  kfree(mem);
                   goto bad;
              }
-             
              ip=vma->ip;
              ilock(ip);
              //i read more data to this file
@@ -259,15 +240,6 @@ int exechandler(uint64 va){
                  sz=PGSIZE;
                }
                 
-                if(va==0){
-                  printf("sz is %d\n",sz);
-                }
-               /* printf("load from off %x sz %x to va %x  noff :%d\n",off,sz,va,mycpu()->noff);
-                extern int acquirecnt;
-                extern int releasecnt;
-                printf("acquire cnt%d release cnt%d\n",acquirecnt,releasecnt);*/
-                //acquire one but not release;
-               
                 if(loadseg(p->pagetable,va,ip,off ,sz)<0){
                   printf("load seg error\n");
                   uvmunmap(p->pagetable,va,1,1);
@@ -277,15 +249,6 @@ int exechandler(uint64 va){
              }
           iunlock(ip);
           end_op();
-          //extern int acquirecnt;
-          //extern int releasecnt;
-          /*
-          if(acquirecnt!=releasecnt){
-            printf("end panic at va %x\n",va);
-            panic("fffff\n");
-          }*/
-
-
           return 0;
         }
        }else{

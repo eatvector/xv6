@@ -89,6 +89,12 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
   int i = 0;
   struct proc *pr = myproc();
 
+  //the page may mot load
+
+  /*if(pagefaulthandler(addr,n,0)==-1){
+    return -1;
+  }*/
+
   acquire(&pi->lock);
   pipeacquirecnt++;
 
@@ -106,12 +112,12 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
     } else {
       char ch;
       // here we hold (pi->lock) but copyin may cause sched and then the system panic.
-      release(&pi->lock);
+     // release(&pi->lock);
       if(copyin(pr->pagetable, &ch, addr + i, 1) == -1){
-        acquire(&pi->lock);
+       // acquire(&pi->lock);
         break;
       }
-      acquire(&pi->lock);
+     // acquire(&pi->lock);
 
       pi->data[pi->nwrite++ % PIPESIZE] = ch;
       i++;
@@ -130,6 +136,10 @@ piperead(struct pipe *pi, uint64 addr, int n)
   struct proc *pr = myproc();
   char ch;
 
+/*  if(pagefaulthandler(addr,n,1)==-1){
+    return -1;
+  }*/
+
   acquire(&pi->lock);
   pipeacquirecnt++;
   while(pi->nread == pi->nwrite && pi->writeopen){  //DOC: pipe-empty
@@ -147,12 +157,12 @@ piperead(struct pipe *pi, uint64 addr, int n)
       break;
     ch = pi->data[pi->nread++ % PIPESIZE];
 
-    release(&pi->lock);
+   // release(&pi->lock);
     if(copyout(pr->pagetable, addr + i, &ch, 1) == -1){
-      acquire(&pi->lock);
+     // acquire(&pi->lock);
       break;
     }
-    acquire(&pi->lock);
+   // acquire(&pi->lock);
     
   }
   wakeup(&pi->nwrite);  //DOC: piperead-wakeup

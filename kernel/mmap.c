@@ -44,10 +44,22 @@ int mmap(uint64 addr){
     //printf("map at addr:%d\n");
     int s=(addr-(uint64)v->addr)/PGSIZE;
 
+
+/*
     //may be a cow page
     if(v->inmemory&(1<<s)){
         printf("a mmap cow page");
         return 1;
+    }*/
+
+    pte_t *pte=walk(p->pagetable,addr,0);
+
+    if(pte&&(*pte&PTE_V)){
+       if(*pte&PTE_COW){
+           return 1;
+       }else{
+           return -1;
+       }
     }
 
    

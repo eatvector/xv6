@@ -3,6 +3,7 @@
 #include "vma.h"
 #include "param.h"
 #include "defs.h"
+#include"proc.h"
 
 struct {
   struct spinlock lock;
@@ -63,3 +64,41 @@ void vmacopy(struct vma*src,struct vma *dst){
     }
     dst->inmemory=src->inmemory;
 }
+
+
+int pagefaulthandler(uint64 va,uint64 n,int cow){
+    uint64 end=va+n;
+    va=PGROUNDDOWN(va);
+    struct proc *p=myproc();
+    
+    int ret=0;
+   
+
+for(;va<end;va+=PGSIZE){
+
+  if(va>=MAXVA){
+     ret= -1;
+  }else{
+    pte_t *pte=walk(p->pagetable,va,0);
+    if(pte&&*pte&PTE_V){
+         if(*pte&PTE_COW&&cow){
+            ret=uvmcow(p->pagetable,va);
+         }else{
+           // do nothing handler
+           ret=1;
+         }
+    }else{
+        ret=mmap(va);
+        if(ret==1){
+          ret=exechandler(va);
+        }
+    }
+  }
+
+    if(ret==-1){
+      break;
+    }
+}
+    return ret;
+}
+

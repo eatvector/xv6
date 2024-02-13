@@ -77,6 +77,11 @@ sys_read(void)
   argint(2, &n);
   if(argfd(0, 0, &f) < 0)
     return -1;
+
+  if(pagefaulthandler(p,n,1)==-1){
+    return -1;
+  }
+  
   return fileread(f, p, n);
 }
 
@@ -92,6 +97,10 @@ sys_write(void)
   argint(2, &n);
   if(argfd(0, 0, &f) < 0)
     return -1;
+
+  if(pagefaulthandler(p,n,0)==-1){
+    return -1;
+  }
   
   return filewrite(f, p, n);
 }
@@ -118,6 +127,10 @@ sys_fstat(void)
   argaddr(1, &st);
   if(argfd(0, 0, &f) < 0)
     return -1;
+
+  if(pagefaulthandler(st,sizeof(struct stat),1)==-1){
+    return -1;
+  }
   return filestat(f, st);
 }
 
@@ -441,6 +454,8 @@ sys_exec(void)
   int i;
   uint64 uargv, uarg;
 
+  //printf("sys_exec\n");
+
   argaddr(1, &uargv);
   if(argstr(0, path, MAXPATH) < 0) {
     return -1;
@@ -496,6 +511,11 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+
+   if(pagefaulthandler(fdarray,sizeof(fd0),1)==-1||pagefaulthandler(fdarray+sizeof(fd0),sizeof(fd1),1)==-1){
+      return -1;
+   }
+
   if(copyout(p->pagetable, fdarray, (char*)&fd0, sizeof(fd0)) < 0 ||
      copyout(p->pagetable, fdarray+sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0){
     p->ofile[fd0] = 0;

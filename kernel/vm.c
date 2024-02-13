@@ -288,6 +288,29 @@ uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
   if(PGROUNDUP(newsz) < PGROUNDUP(oldsz)){
     int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
     uvmunmap(pagetable, PGROUNDUP(newsz), npages, 1);
+
+    //we have to modify the exec field.
+    struct proc*p=myproc();
+    uint64 va=PGROUNDUP(newsz);
+    int i=NPEXECVMA-1;
+    for(;i>=0;i--){
+       if(p->execvma[i]){
+         break;
+       }
+    }
+
+    for(;i>=0;i--){
+      if(va>p->execvma[i]->addr){
+        uint64 memsz=va-p->execvma[i]->addr;
+       if(memsz<p->execvma[i]->memsz){
+         p->execvma[i]->memsz=memsz;
+       }
+      break;
+      }else{
+        vmafree(p->execvma[i]);
+        p->execvma[i]=0;
+      }
+    }
   }
 
   return newsz;
@@ -485,12 +508,14 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0==0){
+    if(pa0==0)
+      return -1;
+   /* if(pa0==0){
       if(exechandler(va0)!=0){
         return -1;
       }
     pa0 = walkaddr(pagetable, va0);
-  }
+  }*/
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
@@ -511,16 +536,15 @@ int
 copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
   uint64 n, va0, pa0;
-
   while(len > 0){
     va0 = PGROUNDDOWN(srcva);
     pa0 = walkaddr(pagetable, va0);
-    if(pa0==0){
+   /* if(pa0==0){
       if(exechandler(va0)!=0){
         return -1;
       }
     pa0 = walkaddr(pagetable, va0);
-  }
+  }*/
 
 
     if(pa0 == 0)
@@ -550,12 +574,15 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   while(got_null == 0 && max > 0){
     va0 = PGROUNDDOWN(srcva);
     pa0 = walkaddr(pagetable, va0);
-   if(pa0==0){
+
+   /*if(pa0==0){
       if(exechandler(va0)!=0){
         return -1;
       }
     pa0 = walkaddr(pagetable, va0);
-  }
+  }*/
+  if(pa0==0)
+   return -1;
 
 
     n = PGSIZE - (srcva - va0);
@@ -596,7 +623,7 @@ int uvmcow(pagetable_t pagetable,uint64 va){
       return -1;
     }
     // if is a cow page
-    if((pte = walk( pagetable, va, 0)) !=0&&(*pte)&PTE_COW){
+    if((pte = walk( pagetable, va, 0)) !=0&&((*pte)&PTE_V)&&((*pte)&PTE_COW)){
         uint64 pa=PTE2PA(*pte);
         char *mem;
         if(refcnt(pa)==1){
@@ -627,5 +654,11 @@ int uvmcow(pagetable_t pagetable,uint64 va){
         return 1;
     }
 }
+
+
+
+
+
+
 
 
