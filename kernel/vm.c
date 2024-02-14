@@ -353,7 +353,7 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 // returns 0 on success, -1 on failure.
 // frees any allocated pages on failure.
 
-//to support my exec.
+/*
 int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
@@ -387,6 +387,43 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   uvmunmap(new, 0, i / PGSIZE, 1);
   return -1;
 }
+*/
+
+int
+uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
+{
+ 
+  pte_t *pte;
+  uint64 pa, i;
+  
+  for(i = 0; i < sz; i += PGSIZE){
+    if((pte = walk(old, i, 0)) == 0){
+         continue;
+    }
+    if((*pte & PTE_V) == 0){
+         continue;
+    }
+    pa = PTE2PA(*pte);
+
+   //set PTE_COW,if PTE_W is set,we should set PTE_PW and clear PTE_W(both for parent and kid's pte)
+   // flags = PTE_FLAGS(*pte);
+    if(*pte&PTE_W){
+       *pte&=(~PTE_W);
+       *pte|=PTE_COW;
+    }
+
+    // map to the same physical page
+    if(mappages(new, i, PGSIZE, (uint64)pa, PTE_FLAGS(*pte)) != 0){
+      goto err;
+    }
+  }
+  return 0;
+
+ err:
+  uvmunmap(new, 0, i / PGSIZE, 1);
+  return -1;
+}
+
 
 // use cow
 // assume that vmas has been copy
@@ -616,8 +653,8 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 int uvmcow(pagetable_t pagetable,uint64 va){
     pte_t *pte;
 
-
-    //printf("cow call\n");
+//
+  //  printf("cow call\n");
     
     if(va>=MAXVA){
       return -1;
@@ -626,6 +663,10 @@ int uvmcow(pagetable_t pagetable,uint64 va){
     if((pte = walk( pagetable, va, 0)) !=0&&((*pte)&PTE_V)&&((*pte)&PTE_COW)){
         uint64 pa=PTE2PA(*pte);
         char *mem;
+         if((mem=kalloc())==0){
+              return -1;
+          }
+        /*
         if(refcnt(pa)==1){
            mem=(char *)pa;
         }else{
@@ -633,9 +674,9 @@ int uvmcow(pagetable_t pagetable,uint64 va){
               return -1;
            }
            memmove(mem,(char *)pa,PGSIZE);
-        }
+        }*/
 
-        //memmove(mem,(char *)pa,PGSIZE);
+        memmove(mem,(char *)pa,PGSIZE);
 
         int flags=PTE_FLAGS(*pte);
         flags&=(~PTE_COW);

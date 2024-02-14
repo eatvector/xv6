@@ -33,6 +33,9 @@ exec(char *path, char **argv)
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
 
+
+  //printf("exec file %s\n",path);
+
   begin_op();
 
   //lost all the map file
@@ -40,6 +43,7 @@ exec(char *path, char **argv)
   //for mmap file do ssomething
   // clear all the vma;
   munmapall();
+
 
 
   //did mmap need to modify like this.
