@@ -70,5 +70,5 @@
 //for memory map file
 #define  NMMAP  64
 // start map from this adress
-#define  MMAPADDR TRAPFRAME-NMMAP*PGSIZE
-
+#define  MMAPADDR (TRAPFRAME-NMMAP*PGSIZE)
+#define  HEAPMAX   MMAPADDR

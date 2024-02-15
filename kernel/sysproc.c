@@ -65,12 +65,12 @@ sys_sbrk(void)
   uint64 newsz=p->sz+n;
 
   if(n>=0){
-      if(newsz>MAXSZ)
+      if(newsz>HEAPMAX)
         return -1;
-       p->sz=p->heapvma.end=newsz;
+       p->sz=p->vma[NPMMAPVMA]->end=newsz;
   } else {
-      if(newsz>=p->heapvma.begin)
-        p->sz=p->heapvma.end=uvmdealloc(p->pagetable, p->sz, newsz);
+      if(newsz>=p->vma[NPMMAPVMA]->addr)
+        p->sz=p->vma[NPMMAPVMA]->end=uvmdealloc(p->pagetable, p->sz, newsz);
       else
         return -1;
   }
