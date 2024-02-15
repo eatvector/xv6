@@ -65,7 +65,38 @@ void vmacopy(struct vma*src,struct vma *dst){
     dst->inmemory=src->inmemory;
 }
 
+//load a page 
+// for 
+// should exit
+static int lazyallocate(uint64 va)
+{
+      char *mem=0;
+      struct proc*p=myproc();
+      //heap vma
+      struct vma*vma=p->vma[NPMMAPVMA];
+      if(va>=vma->addr&&va< vma->end){
+        //already mapped
+     
+         // load the page
+       //  printf("heap vma start :%p  end :%p in heap\n",vma->begin,vma->end);
+         uint64 a=PGROUNDDOWN(va);
+         mem=kalloc();
+         if(mem==0){
+           return -1;
+         }
+         memset(mem, 0, PGSIZE);
+         if(mappages(p->pagetable, a, PGSIZE, (uint64)mem, PTE_R|PTE_U|PTE_W) != 0){
+            kfree(mem);
+           return -1;
+          }
+    }else{
+      return 1;
+    }
+    //return (uint64)mem;
+}
 
+
+//return 0 or -1.
 int pagefaulthandler(uint64 va,uint64 n,int cow){
     uint64 end=va+n;
     va=PGROUNDDOWN(va);
@@ -90,7 +121,10 @@ for(;va<end;va+=PGSIZE){
     }else{
         ret=mmap(va);
         if(ret==1){
-          ret=exechandler(va);
+          ret=lazyallocate(va);
+          //set ret 0 or -1
+          if(ret==1)
+           ret=exechandler(va);
         }
     }
   }

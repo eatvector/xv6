@@ -35,6 +35,7 @@ sys_wait(void)
   return wait(p);
 }
 
+/*
 uint64
 sys_sbrk(void)
 {
@@ -46,10 +47,10 @@ sys_sbrk(void)
   if(growproc(n) < 0)
     return -1;
   return addr;
-}
+}*/
 
-/*
-lazy sbrk
+
+//lazy sbrk
 uint64
 sys_sbrk(void)
 {
@@ -75,7 +76,8 @@ sys_sbrk(void)
   }
   return addr;
 }
-*/
+
+
 uint64
 sys_sleep(void)
 {

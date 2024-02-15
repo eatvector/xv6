@@ -86,35 +86,6 @@ usertrap(void)
         printf("            name=%s\n",p->name);
         setkilled(p);
      }
-
-     #if 0
-      int  ret=mmap(va);
-
-      /*if(va<PGSIZE){
-         printf("scause :%d\n",r_scause());
-      }*/
-      if(ret==-1){
-           printf("usertrap():load page fault\n");
-           setkilled(p);
-       }else if(ret==1){
-             
-          ret=uvmcow(p->pagetable,va);
-          if(ret==-1){
-            printf("can not handle this ");
-            setkilled(p);
-          }else if(ret==1){
-            // may be exec 
-              if(exechandler(va)!=0){
-                  printf("fck exec\n");
-                  printf("can not handle this va :%p",va);
-                  printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-                  printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-                  printf("            name=%s\n",p->name);
-                  setkilled(p);
-              }
-          }
-       }
-       #endif
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
