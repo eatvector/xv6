@@ -92,7 +92,7 @@ static int lazyallocate(uint64 va)
     }else{
       return 1;
     }
-    //return (uint64)mem;
+    return 0;
 }
 
 

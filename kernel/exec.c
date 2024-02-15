@@ -148,6 +148,14 @@ exec(char *path, char **argv)
   sp = sz;
   stackbase = sp - PGSIZE;
 
+  // for heap vma.
+   p->vma[NPMMAPVMA]=vmaalloc();
+   if(p->vma[NPMMAPVMA]==0){
+     goto bad;
+   }
+   p->vma[NPMMAPVMA]->addr=p->vma[NPMMAPVMA]->end=sp;
+
+
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)

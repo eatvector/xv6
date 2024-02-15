@@ -305,7 +305,13 @@ fork(void)
     release(&np->lock);
     return -1;
   }
- 
+
+  np->vma[NPMMAPVMA]=vmaalloc();
+  if(np->vma[NPMMAPVMA]==0){
+    return -1;
+  }
+  vmacopy(p->vma[NPMMAPVMA],np->vma[NPMMAPVMA]);
+
 
  // for mmap  fork
  // we fuck panic in fileclose
@@ -407,6 +413,8 @@ exit(int status)
 
   if(p == initproc)
     panic("init exiting");
+
+  vmafree(p->vma[NPMMAPVMA]);
 
   // for mmap
   // have bigin_op and end_op bugs.
