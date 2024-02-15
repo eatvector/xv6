@@ -48,6 +48,34 @@ sys_sbrk(void)
   return addr;
 }
 
+/*
+lazy sbrk
+uint64
+sys_sbrk(void)
+{
+  uint64 addr;
+  int n;
+
+  argint(0, &n);
+  struct proc *p=myproc();
+
+
+  addr = p->sz;
+  uint64 newsz=p->sz+n;
+
+  if(n>=0){
+      if(newsz>MAXSZ)
+        return -1;
+       p->sz=p->heapvma.end=newsz;
+  } else {
+      if(newsz>=p->heapvma.begin)
+        p->sz=p->heapvma.end=uvmdealloc(p->pagetable, p->sz, newsz);
+      else
+        return -1;
+  }
+  return addr;
+}
+*/
 uint64
 sys_sleep(void)
 {
