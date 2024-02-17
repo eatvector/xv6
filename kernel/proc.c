@@ -418,7 +418,7 @@ exit(int status)
 
   // for mmap
   // have bigin_op and end_op bugs.
-   munmapall();
+ //  munmapall();
 
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
@@ -430,6 +430,7 @@ exit(int status)
   }
 
   begin_op();
+    munmapall();
   for(int i=NPMMAPVMA+NPHEAPVMA;i<NPVMA;i++){
     if(p->vma[i]){
       if(p->vma[i]->ip){

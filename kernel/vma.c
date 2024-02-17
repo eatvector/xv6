@@ -42,6 +42,7 @@ void vmafree(struct vma*vma){
     vma->inmemory=0;
     vma->filesz=0;
     vma->ip=0;
+    vma->end=0;
     release(&vmatable.lock);
 }
 
@@ -59,6 +60,7 @@ void vmacopy(struct vma*src,struct vma *dst){
     dst->off=src->off;
     dst->memsz=src->memsz;
     dst->filesz=src->filesz;
+    dst->end=src->end;
     if(src->ip){
       dst->ip=idup(src->ip);
     }
@@ -103,7 +105,7 @@ int pagefaulthandler(uint64 va,uint64 n,int cow){
     struct proc *p=myproc();
     
     int ret=0;
-   
+    begin_op();
 
 for(;va<end;va+=PGSIZE){
 
@@ -119,12 +121,14 @@ for(;va<end;va+=PGSIZE){
            ret=1;
          }
     }else{
+        //begin_op();
         ret=mmap(va);
         if(ret==1){
           ret=lazyallocate(va);
           //set ret 0 or -1
           if(ret==1)
            ret=exechandler(va);
+       
         }
     }
   }
@@ -133,6 +137,7 @@ for(;va<end;va+=PGSIZE){
       break;
     }
 }
+ end_op();
     return ret;
 }
 

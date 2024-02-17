@@ -14,6 +14,7 @@
 #include "buf.h"
 
 //return 0 if is mmap,-1 if is load page fault
+// should be call in begin_op and end_op
 int mmap(uint64 addr){
 
     struct proc *p=myproc();
@@ -28,10 +29,6 @@ int mmap(uint64 addr){
             }
         }
     }
-
-
-
-
 
     if(v==0){
         // not in mmap region
@@ -82,13 +79,13 @@ int mmap(uint64 addr){
     }
 
     char *mem;
-    begin_op();
+   // begin_op();
     ilock(v->f->ip);
     if(v->flags==MAP_PRIVATE){
 
         if((mem=kalloc())==0){
             iunlock(v->f->ip);
-            end_op();
+            //end_op();
             return -1;
         }
        
@@ -96,7 +93,7 @@ int mmap(uint64 addr){
        
         if(readi(v->f->ip,0,(uint64)mem,addr-(uint64)v->addr+v->off,PGSIZE)==-1){
             iunlock(v->f->ip);
-            end_op();
+           // end_op();
             return -1;
         }
     }else if(v->flags==MAP_SHARED){
@@ -113,7 +110,7 @@ int mmap(uint64 addr){
         panic("mmap:flags");
     }
     iunlock(v->f->ip);
-    end_op();
+    //end_op();
     
     if(mappages(p->pagetable,addr,PGSIZE,(uint64)mem,perm)!=0){
             //end_op();
@@ -125,6 +122,9 @@ int mmap(uint64 addr){
     return 0;
 }
 
+
+
+// should in beginop and endop.
 
 int  munmap(uint64 addr,uint len){
     //addr is in  start or end ,len is 0 or the whole file
@@ -173,10 +173,7 @@ int  munmap(uint64 addr,uint len){
     //int r=0; 
     // this is very important
     int s=(addr-v->addr)/PGSIZE;
-
-
-
-    begin_op();
+    //begin_op();
     ilock(v->f->ip); 
     for(;umap_addr<addr+len;umap_addr+=PGSIZE,s++){
         // check if is in memory
@@ -185,23 +182,12 @@ int  munmap(uint64 addr,uint len){
         //uint off;
         if(inmemory){
              if(v->flags==MAP_SHARED){
-
                 struct buf*bp;
-
-              
                 bp=bufgeti(v->f->ip,umap_addr-(uint64)v->addr+v->off);
-               
-
-               
                 log_write(bp);
-               
-                
-
                 bunpin(bp);
                 brelse(bp);
                 uvmunmap(p->pagetable,umap_addr,1,0);
-                
-
              }else if(v->flags==MAP_PRIVATE){
                 uvmunmap(p->pagetable,umap_addr,1,1);
              }
@@ -213,7 +199,7 @@ int  munmap(uint64 addr,uint len){
 
     }
     iunlock(v->f->ip);
-    end_op();
+   // end_op();
 
     v->lenth-=len;
     if(addr==(uint64)v->addr){
@@ -236,6 +222,7 @@ int  munmap(uint64 addr,uint len){
 
 
 //used in exit
+// should in beginop and endop
 void munmapall(){
     
     struct proc *p=myproc();

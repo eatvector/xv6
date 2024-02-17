@@ -625,8 +625,13 @@ uint64 sys_mmap(void){
   int length;
   argint(1,&length);
 
+  int ret;
+  begin_op();
+  ret=munmap(addr,length);
+  end_op();
+
    //args check is put in munmapfile
-  return munmap(addr,length);
+  return ret;
    
  }
 

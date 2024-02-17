@@ -212,12 +212,13 @@ exec(char *path, char **argv)
 
 //0xc lost instruct 
 // when have page fault do this
+// should call begin_op/end_op.
 int exechandler(uint64 va){
   va=PGROUNDDOWN(va);
    struct proc*p=myproc();
    struct vma*vma;
    struct inode*ip;
-   begin_op();
+   //begin_op();
 
   for(int i=NPMMAPVMA+NPHEAPVMA;i<NPVMA;i++){
        vma=p->vma[i];
@@ -260,7 +261,7 @@ int exechandler(uint64 va){
                 }
              }
           iunlock(ip);
-          end_op();
+         // end_op();
           return 0;
         }
        }else{
@@ -269,7 +270,7 @@ int exechandler(uint64 va){
   }
 
   bad:
-  end_op();
+  //end_op();
   return -1;
 }
 
