@@ -43,11 +43,22 @@ binit(void)
   
   initlock(&bcache.lock, "bcache");
 
-  for(int i=0;i<NBUCKET;i++)
+  for(int i=0;i<NBUCKET;i++){
+    table[i].next=&table[i];
+    table[i].prev=&table[i];
     initlock(&bucketlock[i],"bcache.bucket");
+  }
 
   // insert all buffers into bucket0
   for(b = bcache.buf; b < bcache.buf+NBUF; b++){
+    b->next = table[0].next;
+    b->prev = &table[0];
+    initsleeplock(&b->lock, "buffer");
+    table[0].next->prev=b;
+    table[0].next=b;
+  }
+
+  /*
       b->next=table[0].next;
       if(table[0].next){
         table[0].next->prev=b;
@@ -55,29 +66,52 @@ binit(void)
       table[0].next=b;
       b->prev=&table[0];
       initsleeplock(&b->lock, "buffer");
-  }
+  }*/
 }
+
 
 static struct buf*bget_by_key(uint key,uint dev,uint blockno){
     if(!holding(&bucketlock[key])){
       panic("key_find_free");
     }
+   // acquire(&bucketlock[key]);
     struct buf *b=0;
-    struct buf *free_buf=0;
+    //struct buf *free_buf=0;
 
-    for(b=table[key].next;b;b=b->next){
+    for(b=table[key].next;b!=&table[key];b=b->next){
 
      if(b->dev == dev && b->blockno == blockno){
       b->refcnt++;
-      release(&bucketlock[key]);
       break;
     }
 
-    if(b->refcnt==0){
+   /* if(b->refcnt==0){
        free_buf=b;
+    }*/
+  }
+
+
+ // find a free buf.
+  if(b==0){
+    for(b=table[key].prev;b!=&table[key];b=b->prev){
+       if(b->refcnt==0){
+         b->dev=dev;
+         b->blockno=blockno;
+         b->valid=0;
+         b->refcnt=1;
+         break;
+       }
     }
   }
 
+ // release(&bucketlock[key]);
+  if(b){
+    release(&bucketlock[key]);
+    acquiresleep(&b->lock);
+  }
+  return b;
+
+/*
   if(!b&&free_buf){
     b=free_buf;
     b->dev=dev;
@@ -91,7 +125,7 @@ static struct buf*bget_by_key(uint key,uint dev,uint blockno){
     acquiresleep(&b->lock);
   }
   
-  return b;
+  return b;*/
 }
 
 // Look through buffer cache for block on device dev.
@@ -102,26 +136,26 @@ bget(uint dev, uint blockno)
 {
   struct buf *b;
   uint key=blockno%NBUCKET;
-
   acquire(&bucketlock[key]);
+  b=bget_by_key(key,dev,blockno);
+  if(b){
+    return b;
+  }
+  
+  //still hold ing
 
- b=bget_by_key(key,dev,blockno);
- if(b){
-   return b;
- }
-
-  //to avoid dead lock
-  release(&bucketlock[key]);
-
+  // need to steal free buf from other bucket.
   // to avoid dead lock.
   // a acquire key lock 0
   // then want to acquire key lock 1
   // b acquire key lock 1
   //then want to acquire key lock 0
-  acquire(&bcache.lock);
-  
-  acquire(&bucketlock[key]);
 
+  // relase all the lock we hold;
+  release(&bucketlock[key]);
+
+  acquire(&bcache.lock);
+  acquire(&bucketlock[key]);
 
   b=bget_by_key(key,dev,blockno);
   if(b){
@@ -133,26 +167,20 @@ bget(uint dev, uint blockno)
      if(i!=key){
 
         acquire(&bucketlock[i]);
-        for(b=table[i].next;b;b=b->next){
+        for(b=table[i].prev;b!=&table[i];b=b->prev){
             if(b->refcnt==0){
-               if(b->next){
-                 b->next->prev=b->prev;
-               }
-               b->prev->next=b->next;
-               release(&bucketlock[i]);
-               
-                
-               b->next=table[key].next;
-               if(table[key].next){
-                 table[key].next->prev=b;
-               }
-               table[key].next=b;
-               b->prev=&table[key];
-               goto FIND;
+             b->next->prev=b->prev;
+             b->prev->next=b->next;
+             release(&bucketlock[i]);
+            
+              b->next=table[key].next;
+              table[key].next->prev=b;
+              table[key].next=b;
+              b->prev=&table[key];
+              goto FIND;
             }
         }
         release(&bucketlock[i]);
-
      }
    }
 
@@ -211,6 +239,15 @@ brelse(struct buf *b)
   //acquire(&bcache.lock);
   acquire(&bucketlock[key]);
   b->refcnt--;
+  if(b->refcnt==0){
+    b->next->prev = b->prev;
+    b->prev->next = b->next;
+
+    b->next = table[key].next;
+    b->prev = &table[key];
+    table[key].next->prev = b;
+    table[key].next = b;
+  }
   release(&bucketlock[key]);
   //release(&bcache.lock);
 }
