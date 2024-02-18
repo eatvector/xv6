@@ -94,7 +94,6 @@ static struct buf*bget_by_key(uint key,uint dev,uint blockno){
   return b;
 }
 
-
 // Look through buffer cache for block on device dev.
 // If not found, allocate a buffer.
 // In either case, return locked buffer.
@@ -114,7 +113,13 @@ bget(uint dev, uint blockno)
   //to avoid dead lock
   release(&bucketlock[key]);
 
+  // to avoid dead lock.
+  // a acquire key lock 0
+  // then want to acquire key lock 1
+  // b acquire key lock 1
+  //then want to acquire key lock 0
   acquire(&bcache.lock);
+  
   acquire(&bucketlock[key]);
 
 
@@ -151,7 +156,7 @@ bget(uint dev, uint blockno)
      }
    }
 
-// should arrive here
+// should not arrive here
   release(&bucketlock[key]);
   release(&bcache.lock);
   panic("bget: no buffers");
