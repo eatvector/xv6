@@ -75,13 +75,15 @@ static struct buf*bget_by_key(uint key,uint dev,uint blockno){
       panic("key_find_free");
     }
    // acquire(&bucketlock[key]);
-    struct buf *b=0;
+    struct buf *b;
+    struct buf *bfind=0;
     //struct buf *free_buf=0;
 
     for(b=table[key].next;b!=&table[key];b=b->next){
 
      if(b->dev == dev && b->blockno == blockno){
       b->refcnt++;
+      bfind=b;
       break;
     }
 
@@ -92,40 +94,25 @@ static struct buf*bget_by_key(uint key,uint dev,uint blockno){
 
 
  // find a free buf.
-  if(b==0){
+  if(bfind==0){
     for(b=table[key].prev;b!=&table[key];b=b->prev){
        if(b->refcnt==0){
          b->dev=dev;
          b->blockno=blockno;
          b->valid=0;
          b->refcnt=1;
+         bfind=b;
          break;
        }
     }
   }
 
  // release(&bucketlock[key]);
-  if(b){
+  if(bfind){
     release(&bucketlock[key]);
-    acquiresleep(&b->lock);
+    acquiresleep(&bfind->lock);
   }
-  return b;
-
-/*
-  if(!b&&free_buf){
-    b=free_buf;
-    b->dev=dev;
-    b->blockno=blockno;
-    b->valid=0;
-    b->refcnt=1;
-    release(&bucketlock[key]);
-  }
-
-  if(b){
-    acquiresleep(&b->lock);
-  }
-  
-  return b;*/
+  return bfind;
 }
 
 // Look through buffer cache for block on device dev.
@@ -269,4 +256,5 @@ bunpin(struct buf *b) {
   b->refcnt--;
   release(&bucketlock[key]);
 }
+
 
