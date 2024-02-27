@@ -1,4 +1,5 @@
 struct stat;
+#include"kernel/thread.h"
 
 // system calls
 int fork(void);
@@ -25,6 +26,38 @@ int uptime(void);
 void *mmap(void *addr, uint length, int prot, int flags,
                   int fd, uint offset);
 int munmap(void *addr, uint length);
+
+
+int thread_create(int *tid,void *attr,void *(start)(void*),void *args);
+void thread_exit(void *retval);
+int thread_join(int tid,void **retval);
+int thread_self(void);
+int thread_mutex_init(struct pthread_mutex_t *mutex,void *attr);
+int  thread_mutex_lock(struct pthread_mutex_t *mutex);
+int  thread_mutex_unlock(struct pthread_mutex_t *mutex);
+int thread_cond_init(struct pthread_cond_t *cond,void *attr);
+int  thread_cond_wait(struct pthread_cond_t *cond);
+int  thread_cond_signal(struct pthread_cond_t *cond);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

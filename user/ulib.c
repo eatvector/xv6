@@ -1,6 +1,7 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "kernel/fcntl.h"
+#include "kernel/thread.h"
 #include "user/user.h"
 
 //
@@ -145,3 +146,56 @@ memcpy(void *dst, const void *src, uint n)
 {
   return memmove(dst, src, n);
 }
+
+
+void thread_main(void *thread_func){
+       struct thread_func *tf=( struct thread_func *)thread_func;
+       tf->start(tf->args);
+      // start(args); 
+       thread_exit(0);
+       // call pthread_exit();
+}
+
+int pthread_create(int *tid,void *attr,void *(start)(void*),void *args){
+    struct thread_func  tf;
+    tf.start=start;
+    tf.args=args;
+    thread_create(tid,attr,thread_main,(void *)&tf);
+}
+
+void pthread_exit(void *retval){
+   thread_exit(retval);
+}
+
+int pthread_join(int tid,void **retval){
+   thread_join(tid,retval);
+}
+int pthread_self(void){
+    thread_self();
+}
+
+int pthread_mutex_init(struct pthread_mutex_t *mutex,void *attr){
+   thread_mutex_init(mutex,attr);
+}
+
+//implement fmutex
+int  pthread_mutex_lock(struct pthread_mutex_t *mutex){
+    thread_mutex_lock(mutex);
+}
+
+int  pthread_mutex_unlock(struct pthread_mutex_t *mutex){
+    thread_mutex_unlock(mutex);
+}
+
+int pthread_cond_init(struct pthread_cond_t *cond,void *attr){
+     thread_cond_init(cond,attr);
+}
+
+int  pthread_cond_wait(struct pthread_cond_t *cond){
+    thread_comd_wait(cond);
+}
+
+int  pthread_cond_signal(struct pthread_cond_t *cond){
+  thread_cond_signal(cond);
+}
+

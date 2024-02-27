@@ -13,6 +13,11 @@
         "user.h": "c",
         "buf.h": "c",
         "riscv.h": "c",
-        "param.h": "c"
+        "param.h": "c",
+        "semaphore.h": "c",
+        "string.h": "c",
+        "stdlib.h": "c",
+        "thread.h": "c",
+        "unistd.h": "c"
     }
 }

@@ -14,7 +14,7 @@ sub entry {
     print " ecall\n";
     print " ret\n";
 }
-	
+
 entry("fork");
 entry("exit");
 entry("wait");
@@ -38,5 +38,20 @@ entry("sleep");
 entry("uptime");
 entry("mmap");
 entry("munmap");
+entry("thread_create");
+entry("thread_exit");
+entry("thread_self");
+entry("thread_join");
+entry("thread_mutex_init");
+entry("thread_mutex_lock");
+entry("thread_mutex_unlock");
+entry("thread_cond_init");
+entry("thread_cond_wait");
+entry("thread_cond_signal");
+
+
+
+
+
 
 
