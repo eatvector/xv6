@@ -9,7 +9,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 struct vma;
-
+struct semaphore
 #include"riscv.h"
 
 // bio.c
@@ -214,6 +214,14 @@ struct vma*vmaalloc(void);
 void vmafree(struct vma*vma);
 void vmacopy(struct vma*src,struct vma *dst);
 int pagefaulthandler(uint64 va,uint64 n,int cow);
+
+//semaphore.c
+void initsemaphore(struct semaphore *s,int cnt);
+void sema_p(struct semaphore *s);
+void sema_v(struct semaphore *s);
+  
+
+
 
 
 

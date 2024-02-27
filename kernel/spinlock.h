@@ -1,5 +1,7 @@
 #ifndef SPINLOCK_H
 #define SPINLOCK_H
+// how to fix it.
+//#include"proc.h"
 
 
 

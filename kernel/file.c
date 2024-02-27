@@ -128,9 +128,9 @@ fileread(struct file *f, uint64 addr, int n)
     r = devsw[f->major].read(1, addr, n);
   } else if(f->type == FD_INODE){
 
-    if(pagefaulthandler(addr,n,1)==-1){
+   /* if(pagefaulthandler(addr,n,1)==-1){
        return -1;
-    }
+    }*/
 
 
     ilock(f->ip);

@@ -22,4 +22,14 @@
 #define SYS_close  21
 #define SYS_mmap 22
 #define SYS_munmap 23
+#define SYS_thread_create 24
+#define SYS_thread_exit  25
+#define SYS_thread_self  26
+#define SYS_thread_join  27
+#define SYS_thread_mutex_init 28
+#define SYS_thread_mutex_lock 29
+#define SYS_thread_mutex_unlock 30
+#define SYS_thread_cond_init 31
+#define SYS_thread_cond_wait 32
+#define SYS_thread_cond_signal 33
 

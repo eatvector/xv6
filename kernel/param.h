@@ -16,3 +16,6 @@
 #define NPHEAPVMA      1
 #define NPEXECVMA     50
 #define NPVMA (NPMMAPVMA+NPHEAPVMA+NPEXECVMA)
+#define NPTHREAD 8  // a process can have 8 thread.
+#define NTHREAD  
+#define NBUCKET 37

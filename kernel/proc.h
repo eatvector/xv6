@@ -1,8 +1,11 @@
 
 #ifndef PROC_H
 #define PROC_H
-
+#include"types.h"
 #include "vma.h"
+#include "riscv.h"
+#include "spinlock.h"
+#include "semaphore.h"
 
 // Saved registers for kernel context switches.
 struct context {
@@ -10,6 +13,7 @@ struct context {
   uint64 sp;
 
   // callee-saved
+  // the C compiler generates code in the caller to save caller-saved registers on the stack.
   uint64 s0;
   uint64 s1;
   uint64 s2;
@@ -90,12 +94,16 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 
 // Per-process state
+//also a thread 
 struct proc {
-  struct spinlock lock;
+ // struct spinlock lock;
+ //
 
+  struct semaphore s;//user semaphore to protect the proc shared amomg different thread
+  
   // p->lock must be held when using these:
-  enum procstate state;        // Process state
-  void *chan;                  // If non-zero, sleeping on chan
+  //enum procstate state;        // Process state
+  //void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
@@ -112,6 +120,7 @@ struct proc {
   //struct vma*mapregiontable[NVMA];
   uint16 mmapbitmap;
 
+  
 
   //struct vma*execvma[NPEXECVMA];
 
@@ -121,13 +130,8 @@ struct proc {
  //[NPMMAPVAM+NPHEAPVMA,NPVMA-1] for exec.
   struct vma*vma[NPVMA];
 
-
-
-  
-  
- 
-  struct trapframe *trapframe; // data page for trampoline.S
-  struct context context;      // swtch() here to run process
+  //struct trapframe *trapframe; // data page for trampoline.S
+  //struct context context;      // swtch() here to run process,kernel thread context.
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)

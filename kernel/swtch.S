@@ -2,7 +2,8 @@
 #
 #   void swtch(struct context *old, struct context *new);
 # 
-# Save current registers in old. Load from new.	
+# Save current registers in old. Load from new.
+# must be call with interupt is disable.	
 
 
 .globl swtch

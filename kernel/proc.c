@@ -475,10 +475,12 @@ wait(uint64 addr)
   int havekids, pid;
   struct proc *p = myproc();
 
-  /* if(pagefaulthandler(addr,sizeof(int),1)==-1){
+  // i do dirty work here.
+  if(pagefaulthandler(addr,sizeof(p->xstate),1)==-1){
     return -1;
-  }*/
+  }
 
+  // to avoid lost wakeup.
   acquire(&wait_lock);
 
   for(;;){
@@ -546,6 +548,7 @@ scheduler(void)
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
+        //release the lock in forkret or after sched.
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
@@ -592,7 +595,9 @@ yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
+  // goto scheduler and release the lock.
   sched();
+  //have set the pc and sp ,just release the lock.
   release(&p->lock);
 }
 
@@ -632,6 +637,7 @@ sleep(void *chan, struct spinlock *lk)
   // so it's okay to release lk.
 
   acquire(&p->lock);  //DOC: sleeplock1
+  // safely release the condition lock.
   release(lk);
 
   // Go to sleep.
@@ -650,6 +656,7 @@ sleep(void *chan, struct spinlock *lk)
 
 // Wake up all processes sleeping on chan.
 // Must be called without any p->lock.
+//be called while holding the condition lock.
 void
 wakeup(void *chan)
 {

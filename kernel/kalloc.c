@@ -120,6 +120,7 @@ kalloc(void)
   struct run *r;
 
   acquire(&kmem.lock);
+ // while(1);
   r = kmem.freelist;
   if(r)
     kmem.freelist = r->next;

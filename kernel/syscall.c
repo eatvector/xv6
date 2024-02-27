@@ -120,6 +120,25 @@ extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_mmap(void);
 extern uint64 sys_munmap(void);
+extern uint64 sys_thread_create(void);
+extern uint64 sys_thread_exit(void);
+extern uint64 sys_thread_self(void);
+extern uint64 sys_thread_join(void);
+extern uint64 sys_thread_mutex_init(void);
+extern uint64  sys_thread_mutex_lock(void);
+extern uint64 sys_thread_mutex_unlock(void);
+extern uint64 sys_thread_cond_init(void);
+extern uint64  sys_thread_cond_wait(void);
+extern uint64  sys_thread_cond_signal(void);
+
+
+
+
+
+
+
+
+
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -147,6 +166,16 @@ static uint64 (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_mmap]     sys_mmap,
 [SYS_munmap]  sys_munmap,
+[SYS_thread_create] sys_thread_create,
+[SYS_thread_exit] sys_thread_exit,
+[SYS_thread_self] sys_thread_self,
+[SYS_thread_join] sys_thread_join,
+[SYS_thread_mutex_init] sys_thread_mutex_init,
+[SYS_thread_mutex_lock] sys_thread_mutex_lock,
+[SYS_thread_mutex_unlock] sys_thread_mutex_unlock,
+[SYS_thread_cond_init]  sys_thread_cond_init,
+[SYS_thread_cond_wait] sys_thread_cond_wait,
+[SYS_thread_cond_signal] sys_thread_cond_signal,
 };
 
 void
