@@ -92,7 +92,6 @@ kernelvec:
         #
 .globl timervec
 .align 4
-timervec:
         # start.c has set up the memory that mscratch points to:
         # scratch[0,8,16] : register save area.
         # scratch[24] : address of CLINT's MTIMECMP register.

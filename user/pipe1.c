@@ -3,13 +3,19 @@
 #include "kernel/types.h"
 #include "user/user.h"
 
+ void test_fence(){
+  __sync_synchronize();
+}
+
 int
 main()
 {
   int fds[2];
   char buf[100];
   int n;
-
+  
+  test_fence();
+  
   // create a pipe, with two FDs in fds[0], fds[1].
   pipe(fds);
   
