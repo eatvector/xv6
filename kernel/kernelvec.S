@@ -109,16 +109,16 @@ timervec:
         ld a2, 32(a0) # interval
         ld a3, 0(a1)
         add a3, a3, a2
-        sd a3, 0(a1)
+        sd a3, 0(a1) #clear mip mtip
 
         # arrange for a supervisor software interrupt
         # after this handler returns.
         li a1, 2
-        csrw sip, a1
+        csrw sip, a1 #set mip msip
 
         ld a3, 16(a0)
         ld a2, 8(a0)
         ld a1, 0(a0)
         csrrw a0, mscratch, a0
-
+        #to usermode or mode
         mret

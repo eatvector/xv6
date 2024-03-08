@@ -28,6 +28,7 @@ start()
 
   // set M Exception Program Counter to main, for mret.
   // requires gcc -mcmodel=medany
+  //cpu M->S,jump to main
   w_mepc((uint64)main);
 
   // disable paging for now.
@@ -79,6 +80,7 @@ timerinit()
   w_mscratch((uint64)scratch);
 
   // set the machine-mode trap handler.
+  // we have to modify here.
   w_mtvec((uint64)timervec);
 
   // enable machine-mode interrupts.

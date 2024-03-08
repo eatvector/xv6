@@ -31,6 +31,7 @@
 
 // core local interruptor (CLINT), which contains the timer.
 #define CLINT 0x2000000L
+#define CLINT_MSIP(hartid)   (CLINT+4*(hartid)) //for ipi high 31 bit always zero,The least significant bit is reflected in the MSIP bit of the mip CSR.
 #define CLINT_MTIMECMP(hartid) (CLINT + 0x4000 + 8*(hartid))
 #define CLINT_MTIME (CLINT + 0xBFF8) // cycles since boot.
 
