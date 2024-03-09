@@ -11,8 +11,12 @@ void timerinit();
 __attribute__ ((aligned (16))) char stack0[4096 * NCPU];
 
 // a scratch area per CPU for machine-mode timer interrupts.
+// scratch[0-2] : register save area.
+//scratch[3] : address of CLINT's MTIMECMP register.
+// scratch[4] : desired interval between interrupts.
+// scratch[5] : CLINT_MSIP register.
 uint64 timer_scratch[NCPU][5];
-
+ 
 // assembly code in kernelvec.S for machine-mode timer interrupt.
 extern void timervec();
 
