@@ -37,6 +37,8 @@ start()
   w_medeleg(0xffff);
   w_mideleg(0xffff);
   w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
+ // w_sip(2);
+  //while(1);
 
   // configure Physical Memory Protection to give supervisor mode
   // access to all of physical memory.
