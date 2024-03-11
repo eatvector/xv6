@@ -60,6 +60,8 @@ static const MemMapEntry virt_memmap[] = {
 #define CLINT_MTIMECMP(hartid) (CLINT + 0x4000 + 8*(hartid))
 #define CLINT_MTIME (CLINT + 0xBFF8) // cycles since boot.
 
+#define CLINT_MSIP(hartid) (CLINT + 4*(hartid))
+
 // qemu puts platform-level interrupt controller (PLIC) here.
 // can be see at fu540-c000 manual
 #define PLIC 0x0c000000L

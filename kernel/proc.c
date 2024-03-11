@@ -82,7 +82,7 @@ mycpu(void)
 struct proc*
 myproc(void)
 {
-  push_off();
+  push_off();// can not disable M mode interrupt
   struct cpu *c = mycpu();
   struct proc *p = c->proc;
   pop_off();
