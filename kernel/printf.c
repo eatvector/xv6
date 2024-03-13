@@ -71,6 +71,8 @@ printf(char *fmt, ...)
   if(locking)
     acquire(&pr.lock);
 
+   // while(1);
+
   if (fmt == 0)
     panic("null fmt");
 

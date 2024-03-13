@@ -32,6 +32,7 @@ OBJS = \
   $K/plic.o \
   $K/virtio_disk.o\
   $K/vma.o\
+  $K/sbi.o
 
 OBJS_KCSAN = \
   $K/start.o \
@@ -199,6 +200,16 @@ UPROGS=\
 	$U/_mapsharedtest\
 	$U/_pipe\
 	$U/_sbrktests\
+	$U/_list\
+	$U/_pipe1\
+	$U/_pipe2\
+	$U/_sleep\
+	$U/_pingpong\
+	$U/_primes\
+	$U/_find\
+	$U/_xargs\
+	$U/_source\
+	$U/_lazytest\
 
 
 

@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sbi.h"
 
 struct cpu cpus[NCPU];
 
@@ -84,7 +85,7 @@ mycpu(void)
 struct proc*
 myproc(void)
 {
-  push_off();
+  push_off();// can not disable M mode interrupt
   struct cpu *c = mycpu();
   struct proc *p = c->proc;
   pop_off();
@@ -249,6 +250,8 @@ userinit(void)
   p->trapframe->sp = PGSIZE;  // user stack pointer
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
+  // the first process will set it's work dir at /
+  // other progress will fork to set it's work dir at /
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
@@ -385,6 +388,8 @@ fork(void)
   release(&np->lock);
   
 
+
+  //flush_all_tlb();
   return pid;
 }
 
@@ -774,4 +779,23 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+struct spinlock tlblock;
+
+void init_tlb_lock(){
+  initlock(&tlblock,"tlblock");
+}
+
+extern int cpucnt;
+
+void flush_all_tlb(){
+   acquire(&tlblock);
+    int id=cpuid();
+// need modify here
+  for(int i=0;i<cpucnt;i++){
+    if(i!=id)
+     SBI_CALL(SBI_IPI,i,0,0);
+  }
+  release(&tlblock);
 }

@@ -8,13 +8,26 @@ void main();
 void timerinit();
 
 // entry.S needs one stack per CPU.
+
+
 __attribute__ ((aligned (16))) char stack0[4096 * NCPU];
+//for M mode sbi server
+//__attribute__ ((aligned (16))) char stack1[4096 * NCPU];
 
+
+//__attribute__((used, aligned(16))) char stack0[4096 * NCPU];
+//__attribute__((used, aligned(16))) char stack1[4096 * NCPU];
 // a scratch area per CPU for machine-mode timer interrupts.
-uint64 timer_scratch[NCPU][5];
-
+// scratch[0-2] : register save area.
+// scratch[3] : address of CLINT's MTIMECMP register.
+// scratch[4] : desired interval between interrupts.
+// scratch[5] : CLINT's MSIP registers.
+// scratch[6] : 
+// scratch[7] : ecall 
+//uint64 timer_scratch[NCPU][5];
+ 
 // assembly code in kernelvec.S for machine-mode timer interrupt.
-extern void timervec();
+extern void sbivec();
 
 // entry.S jumps here in machine mode on stack0.
 void
@@ -28,13 +41,17 @@ start()
 
   // set M Exception Program Counter to main, for mret.
   // requires gcc -mcmodel=medany
+  //cpu M->S,jump to main
   w_mepc((uint64)main);
 
   // disable paging for now.
   w_satp(0);
 
   // delegate all interrupts and exceptions to supervisor mode.
-  w_medeleg(0xffff);
+
+  //exceptions
+  w_medeleg(0xfdff);
+  //interrupts
   w_mideleg(0xffff);
   w_sie(r_sie() | SIE_SEIE | SIE_STIE | SIE_SSIE);
 
@@ -73,17 +90,22 @@ timerinit()
   // scratch[0..2] : space for timervec to save registers.
   // scratch[3] : address of CLINT MTIMECMP register.
   // scratch[4] : desired interval (in cycles) between timer interrupts.
+  /*
   uint64 *scratch = &timer_scratch[id][0];
   scratch[3] = CLINT_MTIMECMP(id);
   scratch[4] = interval;
-  w_mscratch((uint64)scratch);
+  w_mscratch((uint64)scratch);*/
 
   // set the machine-mode trap handler.
-  w_mtvec((uint64)timervec);
+  // we have to modify here.
+  w_mtvec((uint64)sbivec);
 
   // enable machine-mode interrupts.
   w_mstatus(r_mstatus() | MSTATUS_MIE);
 
   // enable machine-mode timer interrupts.
   w_mie(r_mie() | MIE_MTIE);
+
+  // enable machine-mode software interrupts.
+  w_mie(r_mie() | MIE_MSIE);
 }

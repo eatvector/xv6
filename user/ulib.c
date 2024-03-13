@@ -55,6 +55,7 @@ memset(void *dst, int c, uint n)
   return dst;
 }
 
+//find the c in string s
 char*
 strchr(const char *s, char c)
 {

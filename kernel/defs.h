@@ -227,3 +227,12 @@ void sema_v(struct semaphore *s);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+
+
+
+
+void init_tlb_lock();
+
+
+void flush_all_tlb();

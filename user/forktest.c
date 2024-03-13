@@ -20,10 +20,12 @@ forktest(void)
 
   print("fork test\n");
 
+  // fork N kids
   for(n=0; n<N; n++){
     pid = fork();
     if(pid < 0)
       break;
+   // if is kid just exit
     if(pid == 0)
       exit(0);
   }
@@ -32,7 +34,11 @@ forktest(void)
     print("fork claimed to work N times!\n");
     exit(1);
   }
+  
 
+
+//we have n child ,if wait return -1 means there is no child
+// wait for a kids process finish and return its pid,so father process know which kid process is finish
   for(; n > 0; n--){
     if(wait(0) < 0){
       print("wait stopped early\n");
@@ -40,6 +46,7 @@ forktest(void)
     }
   }
 
+// if wait return -1 means there is no child
   if(wait(0) != -1){
     print("wait got too many\n");
     exit(1);

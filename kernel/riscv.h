@@ -34,6 +34,14 @@ w_mstatus(uint64 x)
   asm volatile("csrw mstatus, %0" : : "r" (x));
 }
 
+static inline uint64
+r_mcause()
+{
+  uint64 x;
+  asm volatile("csrr %0, mcause" : "=r" (x) );
+  return x;
+}
+
 // machine exception program counter, holds the
 // instruction address to which a return from
 // exception will go.
@@ -42,6 +50,22 @@ w_mepc(uint64 x)
 {
   asm volatile("csrw mepc, %0" : : "r" (x));
 }
+
+// Machine Interrupt Pending
+static inline uint64
+r_mip()
+{
+  uint64 x;
+  asm volatile("csrr %0, mip" : "=r" (x) );
+  return x;
+}
+
+static inline void 
+w_mip(uint64 x)
+{
+  asm volatile("csrw mip, %0" : : "r" (x));
+}
+
 
 // Supervisor Status Register, sstatus
 
@@ -97,6 +121,7 @@ w_sie(uint64 x)
 {
   asm volatile("csrw sie, %0" : : "r" (x));
 }
+
 
 // Machine-mode Interrupt Enable
 #define MIE_MEIE (1L << 11) // external
