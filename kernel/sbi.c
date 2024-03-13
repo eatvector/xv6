@@ -3,13 +3,14 @@
 #include "riscv.h"
 #include "memlayout.h"
 #include "param.h"
-#include "defs.h"
+
 
 // running in M mode
-//
+//M mode stack
 __attribute__ ((aligned (16))) char stack1[4096 * NCPU];
 
-int tlb_sync;//is tlb flush
+//is tlb flush
+volatile static int tlb_sync = 0;
 
 void timer_handler(struct sbi_trap_regs*regs){
     // do someting
@@ -49,11 +50,16 @@ void ipi_handler(){
     *(uint32*)CLINT_MSIP(hartid)=0;
     // mip 
      w_mip(r_mip() & ~8);
+
+    // if is U mode
+    unsigned long x = r_mstatus();
+    if( x &MSTATUS_MPP_U)
     sfence_vma();
     __sync_synchronize();
     //  tlb is flush
     // in M mode we do not use any pagetable
-    printf("hart %d flush tlb\n",hartid);
+    //printf("hart %d flush tlb\n",hartid);
+    
     tlb_sync=1;
 }
 

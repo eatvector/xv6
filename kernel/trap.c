@@ -35,10 +35,14 @@ trapinithart(void)
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
 //
+extern int cpucnt;
 void
 usertrap(void)
 {
   int which_dev = 0;
+  //printf("cpucnt :%d\n",cpucnt);
+ // flush_all_tlb();
+
 
   if((r_sstatus() & SSTATUS_SPP) != 0)
     panic("usertrap: not from user mode");

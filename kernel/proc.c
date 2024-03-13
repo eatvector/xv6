@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "sbi.h"
 
 struct cpu cpus[NCPU];
 
@@ -324,6 +325,8 @@ fork(void)
   np->state = RUNNABLE;
   release(&np->lock);
 
+
+  //flush_all_tlb();
   return pid;
 }
 
@@ -682,4 +685,23 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+struct spinlock tlblock;
+
+void init_tlb_lock(){
+  initlock(&tlblock,"tlblock");
+}
+
+extern int cpucnt;
+
+void flush_all_tlb(){
+   acquire(&tlblock);
+    int id=cpuid();
+// need modify here
+  for(int i=0;i<cpucnt;i++){
+    if(i!=id)
+     SBI_CALL(SBI_IPI,i,0,0);
+  }
+  release(&tlblock);
 }

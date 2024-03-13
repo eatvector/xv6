@@ -466,6 +466,8 @@ sys_exec(void)
   for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
     kfree(argv[i]);
 
+ flush_all_tlb();
+
   return ret;
 
  bad:

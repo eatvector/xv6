@@ -24,6 +24,7 @@ sys_getpid(void)
 uint64
 sys_fork(void)
 {
+   flush_all_tlb();
   return fork();
 }
 
@@ -45,6 +46,8 @@ sys_sbrk(void)
   addr = myproc()->sz;
   if(growproc(n) < 0)
     return -1;
+
+ flush_all_tlb();
   return addr;
 }
 

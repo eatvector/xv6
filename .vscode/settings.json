@@ -63,6 +63,7 @@
         "riscv.h": "c",
         "sbi.h": "c",
         "types.h": "c",
-        "defs.h": "c"
+        "defs.h": "c",
+        "spinlock.h": "c"
     }
 }
