@@ -30,6 +30,7 @@ struct spinlock wait_lock;
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
+/*
 void
 proc_mapstacks(pagetable_t kpgtbl)
 {
@@ -43,6 +44,8 @@ proc_mapstacks(pagetable_t kpgtbl)
     kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
   }
 }
+*/
+
 
 // initialize the proc table.
 void
@@ -614,6 +617,7 @@ forkret(void)
   static int first = 1;
 
   // Still holding p->lock from scheduler.
+  // modify release the thread lock
   release(&myproc()->lock);
 
   if (first) {

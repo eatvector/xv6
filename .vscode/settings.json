@@ -64,6 +64,8 @@
         "sbi.h": "c",
         "types.h": "c",
         "defs.h": "c",
-        "spinlock.h": "c"
+        "spinlock.h": "c",
+        "mutexlock.h": "c",
+        "thread.h": "c"
     }
 }

@@ -33,6 +33,8 @@ exec(char *path, char **argv)
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
 
+  initmutextlock(&p->lock,"procmutextlock");
+  
 
   //printf("exec file %s\n",path);
 
@@ -141,13 +143,23 @@ exec(char *path, char **argv)
   // Use the second as the user stack.
   sz = PGROUNDUP(sz);
   uint64 sz1;
-  if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE, PTE_W)) == 0)
-    goto bad;
-  sz = sz1;
-  uvmclear(pagetable, sz-2*PGSIZE);
-  sp = sz;
-  stackbase = sp - PGSIZE;
 
+  //allocate NTHREAD 
+  for(int i=0;i<NTHREAD;i++){
+   if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE, PTE_W)) == 0)
+     goto bad;
+   sz = sz1;
+   uvmclear(pagetable, sz-2*PGSIZE);
+   sp = sz;
+
+   p->ustack[i]=sp;
+   if(i==0){
+     stackbase = sp - PGSIZE;
+    // p->mmapbitmap|=(1<<i);
+    p->usatckbitmap|=(1<<i);
+   }
+  }
+  
   // for heap vma.
    p->vma[NPMMAPVMA]=vmaalloc();
    if(p->vma[NPMMAPVMA]==0){

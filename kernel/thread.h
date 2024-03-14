@@ -32,11 +32,11 @@ enum threadstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct thread{
   struct spinlock lock;//thread lock
   
-  struct proc*p;  //the process the thread belong to
+  struct proc*proc;  //the process the thread belong to
  // struct spinlock proc_lock;  //to protect the shared proc resources
   int tid;        //thread id;
   int priority;   //for scheduler
-  enum thread_status;// thread status
+  enum threadstate state;// thread status
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  //is killed by other thread?
 
@@ -44,7 +44,12 @@ struct thread{
 
   uint64 kstack;               //kernel thread stack
   struct context context;      // swtch() here to run thread,kernel thread context.
-}
+
+
+  uint8 ustackid;
+  int isustackalloc;
+
+};
 
 
 struct thread_func{

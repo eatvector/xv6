@@ -5,7 +5,8 @@
 #include "vma.h"
 #include "riscv.h"
 #include "spinlock.h"
-#include "semaphore.h"
+#include"mutexlock.h"
+#include "thread.h"
 
 // Saved registers for kernel context switches.
 struct context {
@@ -91,7 +92,7 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
-
+extern struct thread;
 
 // Per-process state
 //also a thread 
@@ -99,7 +100,10 @@ struct proc {
  // struct spinlock lock;
  //
 
-  struct semaphore s;//user semaphore to protect the proc shared amomg different thread
+ // struct semaphore s;//user semaphore to protect the proc shared amomg different thread
+
+  //only onr thread can use it's proc
+  struct mutexlock lock;
   
   // p->lock must be held when using these:
   //enum procstate state;        // Process state
@@ -112,13 +116,15 @@ struct proc {
   struct proc *parent;         // Parent process
 
   // these are private to the process, so p->lock need not be held.
-  uint64 kstack;               // Virtual address of kernel stack
+  //uint64 kstack[NPTHREAD];               // Virtual address of kernel stack
   uint64 sz;                   // Size of process memory (bytes)
   pagetable_t pagetable;       // User page table
   
   // for recode mmap
   //struct vma*mapregiontable[NVMA];
   uint16 mmapbitmap;
+
+
 
   
 
@@ -135,6 +141,13 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  
+  struct thread *mainthread;  //main thread of this proc
+
+  uint64 ustack[NPVMA];// virtual adress of the userstack
+  uint8 usatckbitmap; //is used?
+
 };
 
 #endif

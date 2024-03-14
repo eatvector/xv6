@@ -9,7 +9,8 @@ struct sleeplock;
 struct stat;
 struct superblock;
 struct vma;
-struct semaphore
+struct semaphore;
+struct mutexlock;
 #include"riscv.h"
 
 // bio.c
@@ -220,6 +221,12 @@ void initsemaphore(struct semaphore *s,int cnt);
 void sema_p(struct semaphore *s);
 void sema_v(struct semaphore *s);
   
+//mutexlock.c
+void initmutextlock(struct mutexlock *mutexlock,char *name);
+
+void mutexlock(struct mutexlock *mutexlock)
+
+void mutexunlock(struct mutexlock *mutexlock);
 
 
 
