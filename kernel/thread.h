@@ -35,7 +35,7 @@ struct thread{
   struct proc*proc;  //the process the thread belong to
  // struct spinlock proc_lock;  //to protect the shared proc resources
   int tid;        //thread id;
-  int priority;   //for scheduler
+ // int priority;   //for scheduler
   enum threadstate state;// thread status
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  //is killed by other thread?
@@ -45,7 +45,8 @@ struct thread{
   uint64 kstack;               //kernel thread stack
   struct context context;      // swtch() here to run thread,kernel thread context.
 
-
+  int xstate;     //  // Exit status of this thread.
+ 
   uint8 ustackid;
   int isustackalloc;
 

@@ -9,6 +9,11 @@ int nexttid=0;
 struct  spinlock  tid_lock;
 
 
+struct thread *mythread(){
+      //implement this function
+}
+
+
 void threadinit(void){
    initlock(&tid_lock,"nexttid");
    struct thread *t=thread;
@@ -86,7 +91,7 @@ static void freethread(struct thread *t){
   t->tid=0;
   t->killed=0;
   // not sure here
-  t->priority=0;
+  //t->priority=0;
   //t->state=UNUSED;
   struct proc*p=t->proc;
   if(p){
@@ -152,19 +157,61 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
    newt->trapframe->sp=sp;
    newt->trapframe->epc=(uint64)start;
 
+   newt->state=RUNNABLE;
+
 bad:
 return -1;
 
 }
 
-void thread_exit(void *retval){
+void thread_exit(uint64 retval){
   // main thread is very special,wait kid process
   //may need to wakeup kid process join it
   //then only exit it self.
+  // we do not use retval//
+  //assert()
+
+    
+  //release the lock we hold.
+  //release resources.
+  // do we need to free kstack and ustack?
+
+  struct proc *p=myproc();
+  struct thread *t=mythread(); 
+
+  assert(p==t->proc);
+
+  acquire(&t->lock);
+   t->state=ZOMBIE;
+   t->xstate=0;
+  release(&t->lock);
 
 
+  assert(p==t->proc);
+  if(t==p->mainthread){
+
+    //hold one walkup lock?
+    // other thread may join on the main thread.
+     wakeup(t);
+     //thread join for othre thread
+     // how can we get these thread?
+
+     mutexlock(&p->lock);
+      p->xstate=0;
+      //p->state????
+     mutexunlock(&p->lock);
+  }else{
+     //other thread is exit
+     mutexlock(&p->lock);
+      p->xstate=0;
+      //p->state????
+     mutexunlock(&p->lock);
+  }
+  sched();
+  panic("thread exit never reach here\n");
 }
 
+struct spinlock join_lock;
 
 int thread_join(int tid,void **retval){
   // acquire the spinlock
@@ -172,14 +219,44 @@ int thread_join(int tid,void **retval){
   // process exit
   //  check the state 
   //if not sleep onit.
+
+  //never use retval
+  if(tid<0||tid>=NTHREAD)
+     return -1;
+
+  struct thread *t=mythread();
+  struct thread *wt=&thread[tid];
+
+
+  //we have to release it in a time.
+  acquire(&wt->lock);
+  if(wt->state!=UNUSED){
+      if(wt->proc!=t->proc){
+           return -1;
+      }
+    //a
+
+    acquire(&join_lock);
+     while(wt->state!=ZOMBIE){
+       sleep(wt,&join_lock); 
+     }
+    release(&join_lock);
+
+  }else{
+    // no such thread
+    return -1;
+  }
 }
 
 
 int thread_self(void){
 
+   return mythread()->tid;
+
 }
 
 
+// now we do not implement these fck this.
 int thread_mutex_init(struct pthread_mutex_t *mutex,void *attr){
 
 }

@@ -465,6 +465,7 @@ exit(int status)
   acquire(&p->lock);
 
   p->xstate = status;
+  // call exit the proc is set ZOMBIE.
   p->state = ZOMBIE;
 
   release(&wait_lock);
@@ -636,6 +637,8 @@ forkret(void)
 void
 sleep(void *chan, struct spinlock *lk)
 {
+
+  // modify to support thread.
   struct proc *p = myproc();
   
   // Must acquire p->lock in order to
