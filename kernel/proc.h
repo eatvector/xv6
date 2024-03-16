@@ -148,6 +148,11 @@ struct proc {
   uint64 ustack[NPVMA];// virtual adress of the userstack
   uint8 usatckbitmap; //is used?
 
+
+
+  struct thread *thread_list;// the thread list of this process,nevern use it a thread
+  struct spinlock thread_list_lock;
+
 };
 
 #endif

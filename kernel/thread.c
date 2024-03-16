@@ -70,6 +70,8 @@ found:
   // need modify?
   t->proc=myproc();
 
+ // t->joined=0;
+
   // Allocate a trapframe page.
   if((t->trapframe = (struct trapframe *)kalloc()) == 0){
    // freeproc(p);
@@ -90,6 +92,7 @@ static void freethread(struct thread *t){
     kfree((void *)t->trapframe);
   t->tid=0;
   t->killed=0;
+  t->joined=0;
   // not sure here
   //t->priority=0;
   //t->state=UNUSED;
@@ -164,6 +167,65 @@ return -1;
 
 }
 
+//int thread_join(int tid,void **retval);
+
+
+int killthread(int tid){
+   acquire(&thread[tid]);
+
+  
+}
+
+
+//must hold lst
+int  do_thread_join(int tid){
+   struct proc *p=myproc();
+   struct thread *t=mythread();
+
+   if(!holding(&p->thread_list)){
+     panic("Should thread_list lock\n");
+   }
+  struct thread *tt=p->thread_list->next;
+    // killthread(tt->tid);
+     while(tt){
+       if(tt->tid==tid){
+         break;
+       }
+       tt=tt->next;
+     }
+  release(&p->thread_list);
+
+  if(tt==0)
+    return -1;
+
+
+  //avoid dead lock?
+
+  //may have dead locks.
+  if(t->tid<tt->tid){
+    acquire(&t->lock);
+    acquire(&tt->lock);
+  }else{
+    acquire(&tt->lock);
+    acquire(&t->lock);
+  }
+  
+  int join_flag=0;
+
+   while(tt->state!=ZOMBIE){
+       tt->joined=1;
+       join_flag=1;
+       release(&tt->lock);
+       sleep(tt,&t->lock); 
+    }
+
+    if(join_flag==0)
+       release(&t->lock);
+
+    release(&tt->lock);
+}
+
+
 void thread_exit(uint64 retval){
   // main thread is very special,wait kid process
   //may need to wakeup kid process join it
@@ -184,34 +246,57 @@ void thread_exit(uint64 retval){
   acquire(&t->lock);
    t->state=ZOMBIE;
    t->xstate=0;
-  release(&t->lock);
+  //release(&t->lock);
 
 
   assert(p==t->proc);
-  if(t==p->mainthread){
-
-    //hold one walkup lock?
-    // other thread may join on the main thread.
-     wakeup(t);
-     //thread join for othre thread
-     // how can we get these thread?
-
-     mutexlock(&p->lock);
-      p->xstate=0;
-      //p->state????
-     mutexunlock(&p->lock);
-  }else{
-     //other thread is exit
-     mutexlock(&p->lock);
-      p->xstate=0;
-      //p->state????
-     mutexunlock(&p->lock);
+  // this thread is exit,but 
+  if(t->joined){
+   // wakeup(t);
+    t->joined=0;
   }
+  release(&t->lock);
+
+
+  //rember to initial it
+  acquire(&p->thread_list_lock);
+
+
+  //rm from list
+  //t->prev->next=t->next;
+  //have bugs?
+  t->next->prev=t->prev;
+  t->prev->next=t->next;
+
+  wakeup(t);
+
+   //is p->mainthread clean?
+  if(t==p->mainthread){
+    //wait for other thread exit
+     struct thread *tt=p->thread_list->next;
+    // killthread(tt->tid);
+     while(tt){
+       killthread(tt->tid);
+       //thread_join(tt->tid,0);
+       do_thread_join(tt->tid);
+
+       // have bug
+       tt=tt->next;
+     }
+  }
+
+  //if no 
+  //all other thread is exit
+  if(p->thread_list->next==0){
+      p->xstate=0;
+     // p->state=ZOMBIE;(kill the process);
+  }
+
+  release(&p->thread_list_lock);
   sched();
   panic("thread exit never reach here\n");
 }
 
-struct spinlock join_lock;
 
 int thread_join(int tid,void **retval){
   // acquire the spinlock
@@ -221,31 +306,9 @@ int thread_join(int tid,void **retval){
   //if not sleep onit.
 
   //never use retval
-  if(tid<0||tid>=NTHREAD)
-     return -1;
-
-  struct thread *t=mythread();
-  struct thread *wt=&thread[tid];
-
-
-  //we have to release it in a time.
-  acquire(&wt->lock);
-  if(wt->state!=UNUSED){
-      if(wt->proc!=t->proc){
-           return -1;
-      }
-    //a
-
-    acquire(&join_lock);
-     while(wt->state!=ZOMBIE){
-       sleep(wt,&join_lock); 
-     }
-    release(&join_lock);
-
-  }else{
-    // no such thread
-    return -1;
-  }
+  struct proc *p=myproc();
+  acquire(&p->thread_list_lock);
+  return do_thread_join(tid);
 }
 
 

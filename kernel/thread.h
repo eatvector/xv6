@@ -49,6 +49,12 @@ struct thread{
  
   uint8 ustackid;
   int isustackalloc;
+  int joined;// a thread can be joined by only one thread
+  
+  
+  
+  struct thread *next;
+  struct thread *prev;
 
 };
 
