@@ -104,7 +104,9 @@ struct proc {
  // struct semaphore s;//user semaphore to protect the proc shared amomg different thread
 
   //only onr thread can use it's proc
-  struct mutexlock lock;
+  struct mutexlock vmalock;
+  struct spinlock lock;
+
   
   // p->lock must be held when using these:
   //enum procstate state;        // Process state
@@ -149,7 +151,7 @@ struct proc {
   uint64 ustack[NPVMA];// virtual adress of the userstack
   uint8 usatckbitmap; //is used?
 
-
+  int nthread;
 
   //struct thread *thread_list;// the thread list of this process,nevern use it a thread
   struct spinlock thread_list_lock;
