@@ -66,6 +66,7 @@
         "defs.h": "c",
         "spinlock.h": "c",
         "mutexlock.h": "c",
-        "thread.h": "c"
+        "thread.h": "c",
+        "list.h": "c"
     }
 }

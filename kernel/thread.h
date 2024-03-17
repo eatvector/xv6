@@ -3,6 +3,7 @@
 #include "types.h"
 #include"spinlock.h"
 #include "proc.h"
+#include"list.h"
 #if 0
 struct thread
   {
@@ -29,7 +30,11 @@ struct thread
 
 enum threadstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+
 struct thread{
+  
+
+  //struct list;
   struct spinlock lock;//thread lock
   
   struct proc*proc;  //the process the thread belong to
@@ -53,8 +58,7 @@ struct thread{
   
   
   
-  struct thread *next;
-  struct thread *prev;
+  struct list thread_list;
 
 };
 

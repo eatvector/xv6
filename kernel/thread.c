@@ -169,29 +169,37 @@ return -1;
 
 //int thread_join(int tid,void **retval);
 
-
-int killthread(int tid){
-   acquire(&thread[tid]);
-
-  
+int killthread(struct thread *thread){
+   acquire(&thread->lock);
+   thread->killed=1;
+   release(&thread->lock);
 }
 
+int threadkilled(struct thread *thread){
+  int k=0;
+  acquire(&thread->lock);
+   k=thread->killed;
+   release(&thread->lock);
+   return k;
+}
 
 //must hold lst
-int  do_thread_join(int tid){
+int  do_thread_join(int tid,int type){
    struct proc *p=myproc();
    struct thread *t=mythread();
 
-   if(!holding(&p->thread_list)){
+   if(!holding(&p->thread_list_lock)){
      panic("Should thread_list lock\n");
    }
-  struct thread *tt=p->thread_list->next;
-    // killthread(tt->tid);
-     while(tt){
+
+  struct list *l=p->thread_list.next;
+  struct thread *tt;
+     while(l){
+      tt=list_entry(l,struct thread,thread_list);
        if(tt->tid==tid){
          break;
        }
-       tt=tt->next;
+       l=l->next;
      }
   release(&p->thread_list);
 
@@ -202,6 +210,7 @@ int  do_thread_join(int tid){
   //avoid dead lock?
 
   //may have dead locks.
+/*
   if(t->tid<tt->tid){
     acquire(&t->lock);
     acquire(&tt->lock);
@@ -209,18 +218,30 @@ int  do_thread_join(int tid){
     acquire(&tt->lock);
     acquire(&t->lock);
   }
-  
-  int join_flag=0;
+*/
+  acquire(&tt->lock);
+
+  // the thread tt has been joined.
+   if(type&&tt->joined==1){
+     return -1;
+   }
+
+ // int join_flag=0;
 
    while(tt->state!=ZOMBIE){
+     if(type)
        tt->joined=1;
-       join_flag=1;
-       release(&tt->lock);
-       sleep(tt,&t->lock); 
-    }
+       /*if(join_flag==0){
+         join_flag=1;
+         release(&tt->lock);
+       }*/
+       // tt exit will set tt->joined before wake up t
+      // if(threadkilled())
+       sleep(tt,&tt->lock); 
+  }
 
-    if(join_flag==0)
-       release(&t->lock);
+    /*if(join_flag==0)
+       release(&t->lock);*/
 
     release(&tt->lock);
 }
@@ -248,8 +269,6 @@ void thread_exit(uint64 retval){
    t->xstate=0;
   //release(&t->lock);
 
-
-  assert(p==t->proc);
   // this thread is exit,but 
   if(t->joined){
    // wakeup(t);
@@ -265,20 +284,25 @@ void thread_exit(uint64 retval){
   //rm from list
   //t->prev->next=t->next;
   //have bugs?
-  t->next->prev=t->prev;
-  t->prev->next=t->next;
+  t->thread_list.next->prev=t->thread_list.prev;
+  t->thread_list.prev->next=t->thread_list.next;
 
   wakeup(t);
+
+  struct thread *tt;
+  struct thread *l;
 
    //is p->mainthread clean?
   if(t==p->mainthread){
     //wait for other thread exit
-     struct thread *tt=p->thread_list->next;
+    l=p->thread_list.next;
     // killthread(tt->tid);
-     while(tt){
-       killthread(tt->tid);
+     while(l){
+       killthread(tt);
        //thread_join(tt->tid,0);
-       do_thread_join(tt->tid);
+       //do not check joined file
+        //may have bugs?
+       do_thread_join(tt->tid,0);
 
        // have bug
        tt=tt->next;
@@ -287,7 +311,7 @@ void thread_exit(uint64 retval){
 
   //if no 
   //all other thread is exit
-  if(p->thread_list->next==0){
+  if(p->thread_list.next==0){
       p->xstate=0;
      // p->state=ZOMBIE;(kill the process);
   }
@@ -308,7 +332,7 @@ int thread_join(int tid,void **retval){
   //never use retval
   struct proc *p=myproc();
   acquire(&p->thread_list_lock);
-  return do_thread_join(tid);
+  return do_thread_join(tid,1);
 }
 
 

@@ -8,6 +8,7 @@
 #include"mutexlock.h"
 #include "thread.h"
 
+
 // Saved registers for kernel context switches.
 struct context {
   uint64 ra;
@@ -150,8 +151,9 @@ struct proc {
 
 
 
-  struct thread *thread_list;// the thread list of this process,nevern use it a thread
+  //struct thread *thread_list;// the thread list of this process,nevern use it a thread
   struct spinlock thread_list_lock;
+  struct list thread_list;
 
 };
 
