@@ -13,6 +13,7 @@ struct semaphore;
 struct mutexlock;
 #include"riscv.h"
 
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -228,6 +229,13 @@ void mutexlock(struct mutexlock *mutexlock)
 
 void mutexunlock(struct mutexlock *mutexlock);
 
+
+
+//thread.c
+uint64 userstackallocate();
+void userstackfree(uint64 ustack);
+struct thread* allocthread(void);
+struct thread *mythread();
 
 
 

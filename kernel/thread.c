@@ -14,6 +14,155 @@ struct thread *mythread(){
 }
 
 
+// Atomically release lock and sleep on chan.
+// Reacquires lock when awakened.
+void
+sleep(void *chan, struct spinlock *lk)
+{
+
+  // modify to support thread.
+  struct thread *t = mythread();
+  
+  // Must acquire p->lock in order to
+  // change p->state and then call sched.
+  // Once we hold p->lock, we can be
+  // guaranteed that we won't miss any wakeup
+  // (wakeup locks p->lock),
+  // so it's okay to release lk.
+
+  acquire(&t->lock);  //DOC: sleeplock1
+  // safely release the condition lock.
+  release(lk);
+
+  // Go to sleep.
+  t->chan = chan;
+  t->state = SLEEPING;
+
+  sched();
+
+  // Tidy up.
+  t->chan = 0;
+
+  // Reacquire original lock.
+  release(&t->lock);
+  acquire(lk);
+}
+
+// Wake up all processes sleeping on chan.
+// Must be called without any p->lock.
+//be called while holding the condition lock.
+void
+wakeup(void *chan)
+{
+  struct thread *t;
+
+  for(t = proc; t < &thread[NPROC]; t++) {
+    if(t != mythread()){
+      acquire(&t->lock);
+      if(t->state == SLEEPING && t->chan == chan) {
+        t->state = RUNNABLE;
+      }
+      release(&t->lock);
+    }
+  }
+}
+
+void
+scheduler(void)
+{
+  struct thread *t;
+  struct cpu *c = mycpu();
+  
+  c->thread = 0;
+  for(;;){
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    for(t = thread; t < &thread[NTHREAD]; t++) {
+      acquire(&t->lock);
+      if(t->state == RUNNABLE) {
+        // Switch to chosen process.  It is the process's job
+        // to release its lock and then reacquire it
+        // before jumping back to us.
+        t->state = RUNNING;
+        c->thread = t;
+        swtch(&c->context, &t->context);
+        //release the lock in forkret or after sched.
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->thread = 0;
+      }
+      release(&t->lock);
+    }
+  }
+}
+
+// Switch to scheduler.  Must hold only p->lock
+// and have changed proc->state. Saves and restores
+// intena because intena is a property of this
+// kernel thread, not this CPU. It should
+// be proc->intena and proc->noff, but that would
+// break in the few places where a lock is held but
+// there's no process.
+void
+sched(void)
+{
+  int intena;
+  struct thread *t = mythread();
+
+  if(!holding(&t->lock))
+    panic("sched p->lock");
+  if(mycpu()->noff != 1){
+   // printf("noff :%d\n",mycpu()->noff);
+    panic("sched locks");
+  }
+  if(t->state == RUNNING)
+    panic("sched running");
+  if(intr_get())
+    panic("sched interruptible");
+
+  intena = mycpu()->intena;
+  swtch(&t->context, &mycpu()->context);
+  mycpu()->intena = intena;
+}
+
+// Give up the CPU for one scheduling round.
+void
+yield(void)
+{
+  struct proc *p = myproc();
+  acquire(&p->lock);
+  p->state = RUNNABLE;
+  // goto scheduler and release the lock.
+  sched();
+  //have set the pc and sp ,just release the lock.
+  release(&p->lock);
+}
+
+// A fork child's very first scheduling by scheduler()
+// will swtch to forkret.
+void
+forkret(void)
+{
+  static int first = 1;
+
+  // Still holding p->lock from scheduler.
+  // modify release the thread lock
+  release(&mythread()->lock);
+
+  if (first) {
+    // File system initialization must be run in the context of a
+    // regular process (e.g., because it calls sleep), and thus cannot
+    // be run from main().
+    first = 0;
+    fsinit(ROOTDEV);
+  }
+
+  usertrapret();
+}
+
+
 void threadinit(void){
    initlock(&tid_lock,"nexttid");
    struct thread *t=thread;
@@ -52,7 +201,7 @@ thread_mapstacks(pagetable_t kpgtbl)
   }
 }
 
-static struct thread* allocthread(void){
+struct thread* allocthread(void){
     struct thread *t;
     for(t = thread; t< &thread[NTHREAD]; t++) {
       acquire(&t->lock);
@@ -69,7 +218,7 @@ found:
   t->state = USED;
 
   // need modify?
-  t->proc=myproc();
+ // t->proc=myproc();
 
  // t->joined=0;
 
@@ -88,7 +237,7 @@ found:
 }
 
 //need modify
-static uint64 userstackallocate(){
+ uint64 userstackallocate(){
   struct proc*p=myproc();
   acquire(&p->lock);
   uint ustack=0;
@@ -106,7 +255,7 @@ static uint64 userstackallocate(){
    return ustack;
 }
 
-static void userstackfree(uint64 ustack){
+ void userstackfree(uint64 ustack){
    if(ustack%PGSIZE){
      panic("Error ustack");
    }
@@ -122,7 +271,7 @@ static void userstackfree(uint64 ustack){
    release(&p->lock);
 }
 
-static void freethread(struct thread *t){
+void freethread(struct thread *t){
   if(t->trapframe)
     kfree((void *)t->trapframe);
   t->tid=0;
@@ -146,6 +295,12 @@ static void freethread(struct thread *t){
 }
 
 
+
+
+
+
+
+
 //never user attr in xv6
 int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
     // allocate a userthread  stack
@@ -165,6 +320,9 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
    if(newt==0){
      goto bad;
    }
+
+  newt->proc=p;
+
 
    uint64 sp=userstackallocate();
    newt->ustack=sp;
@@ -316,6 +474,7 @@ void thread_exit(uint64 retval){
   acquire(&p->lock);
   if(p->nthread==0){
     p->xstate=0;
+    p->state=ZOMBIE;
   }
   release(&p->lock);
 

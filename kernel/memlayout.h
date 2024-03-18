@@ -97,7 +97,7 @@ static const MemMapEntry virt_memmap[] = {
 //   ...
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
-#define TRAPFRAME (TRAMPOLINE - PGSIZE)
+#define TRAPFRAME(i) (TRAMPOLINE - (i+1)*PGSIZE)
 
 
 //for memory map file

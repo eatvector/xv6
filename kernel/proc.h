@@ -32,6 +32,7 @@ struct context {
 
 // Per-CPU state.
 struct cpu {
+  struct thread *thread;
   struct proc *proc;          // The process running on this cpu, or null.
   struct context context;     // swtch() here to enter scheduler().
   int noff;                   // Depth of push_off() nesting.
@@ -91,7 +92,7 @@ struct trapframe {
   /* 280 */ uint64 t6;
 };
 
-enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+enum procstate {UNUSED, USED,ZOMBIE};
 
 extern struct thread;
 
@@ -106,6 +107,9 @@ struct proc {
   //only onr thread can use it's proc
  
   struct spinlock lock;
+
+
+  enum procstate state;
 
   
   // p->lock must be held when using these:
@@ -134,9 +138,16 @@ struct proc {
   int nthread;
   struct thread *mainthread; 
 
+
+
+  uint8 trapframebitmap;
+
   //struct thread *thread_list;// the thread list of this process,nevern use it a thread
   struct spinlock thread_list_lock;
   struct list thread_list;
+
+  // 
+  //int isend;
 
 
   //[0,NPMMAPVMA-1]  for mmap
