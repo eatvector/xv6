@@ -152,11 +152,10 @@ exec(char *path, char **argv)
    uvmclear(pagetable, sz-2*PGSIZE);
    sp = sz;
 
-   p->ustack[i]=sp;
    if(i==0){
+     p->ustack_start=sp;
      stackbase = sp - PGSIZE;
-    // p->mmapbitmap|=(1<<i);
-    p->usatckbitmap|=(1<<i);
+     p->usatckbitmap=1;
    }
   }
   

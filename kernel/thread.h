@@ -48,12 +48,14 @@ struct thread{
   struct trapframe *trapframe; // data page for trampoline.S(user thread <--> kernel thread)
 
   uint64 kstack;               //kernel thread stack
+  uint64 ustack;
   struct context context;      // swtch() here to run thread,kernel thread context.
 
   int xstate;     //  // Exit status of this thread.
  
-  uint8 ustackid;
-  int isustackalloc;
+  
+ 
+
   int joined;// a thread can be joined by only one thread
   
   

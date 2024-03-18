@@ -42,7 +42,8 @@ thread_mapstacks(pagetable_t kpgtbl)
 {
   struct thread *t;
   
-  for(t= thread; t < &thread[NPROC]; t++) {
+  for(t= thread; t < &thread[NPTHREAD]; t++) {
+    //never free
     char *pa = kalloc();
     if(pa == 0)
       panic("kalloc");
@@ -87,6 +88,40 @@ found:
 }
 
 //need modify
+static uint64 userstackallocate(){
+  struct proc*p=myproc();
+  acquire(&p->lock);
+  uint ustack=0;
+  //int t=1;
+  for(int i=0;i<NTHREAD;i++){
+    if((p->usatckbitmap&(1<<i))==0){
+        // find a free ustack
+       ustack=p->ustack_start+i*2*PGSIZE;
+       //mark it as used
+       p->usatckbitmap|=(1<<i);
+    }
+  }
+  release(&p->lock);
+   // can not allocate usertack
+   return ustack;
+}
+
+static void userstackfree(uint64 ustack){
+   if(ustack%PGSIZE){
+     panic("Error ustack");
+   }
+   struct proc *p=myproc();
+   //struct thread 
+   acquire(&p->lock);
+   int i=(ustack-p->ustack_start)/PGSIZE;
+   if(i<0||i>=NTHREAD){
+    panic("Error ustack");
+   }
+   //mark it unused.
+   p->usatckbitmap&=~(1<<i);
+   release(&p->lock);
+}
+
 static void freethread(struct thread *t){
   if(t->trapframe)
     kfree((void *)t->trapframe);
@@ -131,22 +166,13 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
      goto bad;
    }
 
-   uint64 sp;
-   int i;
-   for(i=0;i<NPTHREAD;i++){
-     
-     if(p->usatckbitmap&(1<<i)){
-         sp=p->ustack[i];
-     }
-   }
+   uint64 sp=userstackallocate();
+   newt->ustack=sp;
 
-   if(i==NPTHREAD){
-      goto bad;
+   if(sp==0){
+     goto bad;
    }
-
-   //remember id  in thread struct
-   newt->ustackid=i;
-   newt->isustackalloc=1;
+   
    
   //push args to sp
   pagetable_t pagetable=p->pagetable;
@@ -227,8 +253,11 @@ void thread_exit(uint64 retval){
 
   struct proc *p=myproc();
   struct thread *t=mythread(); 
-
   assert(p==t->proc);
+
+  //give up the userstack
+  userstackfree(t->ustack);
+  t->ustack=0;
 
   acquire(&t->lock);
    t->xstate=0;
@@ -289,7 +318,6 @@ void thread_exit(uint64 retval){
     p->xstate=0;
   }
   release(&p->lock);
-
 
   sched();
   panic("thread exit never reach here\n");
