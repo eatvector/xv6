@@ -516,6 +516,52 @@ int thread_join(int tid,void **retval){
   release(&tt->lock);
 }
 
+// kill all other thread ,and wait  they call thread_exit.
+// set current thread state to ZOMBIE
+void kill_wait(){
+  struct thread *t=mythread();
+  struct proc *p=myproc();
+
+  acquire(&t->lock);
+  t->state=ZOMBIE;
+  t->joined=0;
+  release(&t->lock);
+
+  wakeup(&t);
+  struct list *l=p->thread_list.next;
+  struct thread *tt;
+
+  // kill all other process
+acquire(&p->thread_list);
+while(l){
+  tt=list_entry(l,struct thread,thread_list);
+  if(tt!=t){
+    //acquire()
+    killthread(tt);
+  }
+ l=l->next;
+}
+
+
+l=p->thread_list.next;
+while(l){
+  tt=list_entry(l,struct thread,thread_list);
+  if(tt!=t){
+    //acquire()
+   // killthread(tt);
+   acquire(&tt->lock);
+   if(tt->joined==0)
+      do_thread_join(&tt);
+      //release
+  }
+  release(&tt->lock);
+ l=l->next;
+}
+
+release(&p->thread_list);
+
+}
+
 
 int thread_self(void){
 

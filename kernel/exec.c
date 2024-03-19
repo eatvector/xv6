@@ -37,7 +37,12 @@ exec(char *path, char **argv)
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
 
-  initmutextlock(&p->lock,"procmutextlock");
+
+
+  //  kill all other thread and this thread.
+  kill_wait();
+
+  //initmutextlock(&p->lock,"procmutextlock");
   
 
   //printf("exec file %s\n",path);
@@ -142,6 +147,15 @@ exec(char *path, char **argv)
   p = myproc();
   uint64 oldsz = p->sz;
 
+
+ //when do we free the trapfarme memory;
+  p->usatckbitmap=1;
+  p->trapframebitmap=1;
+  p->nthread=1;
+  
+
+
+
   // Allocate two pages at the next page boundary.
   // Make the first inaccessible as a stack guard.
   // Use the second as the user stack.
@@ -163,13 +177,27 @@ exec(char *path, char **argv)
    }
   }
   
+ 
   // for heap vma.
    p->vma[NPMMAPVMA]=vmaalloc();
    if(p->vma[NPMMAPVMA]==0){
      goto bad;
    }
-   p->vma[NPMMAPVMA]->addr=p->vma[NPMMAPVMA]->end=sp;
+   p->vma[NPMMAPVMA]->addr=p->vma[NPMMAPVMA]->end= sp;
 
+
+  // do we nned hold lock?
+  sp=p->ustack_start;
+  struct thread *mainthread=allocthread();
+  mainthread->proc=p;
+  p->mainthread=mainthread;
+  p->thread_list.next=&mainthread->thread_list;
+  mainthread->thread_list.prev=& p->thread_list;
+
+
+  // i do not know here ,may allocate a new tramframe?
+  mainthread->ustack=p->ustack_start;
+  mainthread->trapframeva=TRAPFRAME(0);
 
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
@@ -198,7 +226,7 @@ exec(char *path, char **argv)
   // value, which goes in a0.
 
    
-  p->trapframe->a1 = sp;
+  mainthread->trapframe->a1 = sp;
 
   // Save program name for debugging.
   for(last=s=path; *s; s++)
@@ -210,8 +238,8 @@ exec(char *path, char **argv)
   oldpagetable = p->pagetable;
   p->pagetable = pagetable;
   p->sz = sz;
-  p->trapframe->epc = elf.entry;  // initial program counter = main
-  p->trapframe->sp = sp; // initial stack pointer
+  mainthread->trapframe->epc = elf.entry;  // initial program counter = main
+  mainthread->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
 
 

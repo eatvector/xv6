@@ -479,9 +479,14 @@ void
 exit(int status)
 {
   struct proc *p = myproc();
-
+  
+  
   if(p == initproc)
     panic("init exiting");
+
+
+  //how can we sat the p->xcode.
+  kill_wait();
 
   vmafree(p->vma[NPMMAPVMA]);
 
