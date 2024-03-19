@@ -19,6 +19,10 @@ int flags2perm(int flags)
     return perm;
 }
 
+
+
+
+//we should stop all other thread that is running.
 int
 exec(char *path, char **argv)
 {
@@ -144,7 +148,7 @@ exec(char *path, char **argv)
   sz = PGROUNDUP(sz);
   uint64 sz1;
 
-  //allocate NTHREAD 
+  //allocate NTHREAD  ustackmemory
   for(int i=0;i<NTHREAD;i++){
    if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE, PTE_W)) == 0)
      goto bad;
@@ -192,6 +196,8 @@ exec(char *path, char **argv)
   // arguments to user main(argc, argv)
   // argc is returned via the system call return
   // value, which goes in a0.
+
+   
   p->trapframe->a1 = sp;
 
   // Save program name for debugging.

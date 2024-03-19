@@ -330,11 +330,6 @@ fork(void)
     return -1;
   }
 
-   if((nt = allocthread()) == 0){
-    return -1;
-  }
-
-
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
     freeproc(np);
@@ -392,21 +387,24 @@ fork(void)
   }
 // data ,code ,heap
   np->sz = p->sz;
-
-  //p->trapframebitmap;
- // p->
-  /*
-
-
-  */
-
   
+  np->ustack_start=p->ustack_start;
+   
+
+  // when to free the ustack.
+  int ustacki=USTACKI(p->ustack_start,t->ustack);
+  np->usatckbitmap=(1<<ustacki);
+  // do we need free the trapframe of other thread?
+  int trapframei=TRAPFRAMEI(t->trapframeva);
+  np->trapframebitmap=(1<<trapframei);
+  
+  np->nthread=1;
 
   // copy saved user registers.
-  *(np->trapframe) = *(p->trapframe);
+ // *(np->trapframe) = *(p->trapframe);
 
   // Cause fork to return 0 in the child.
-  np->trapframe->a0 = 0;
+//  np->trapframe->a0 = 0;
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
@@ -424,13 +422,38 @@ fork(void)
   np->parent = p;
   release(&wait_lock);
 
-  acquire(&np->lock);
+  /*acquire(&np->lock);
   np->state = RUNNABLE;
+  release(&np->lock);*/
+// allocate a new thread for this 
+
+
+//first acquire thread lock,the acquire the proc lock
+  if((nt = allocthread()) == 0){
+    return -1;
+  }
+  *nt->trapframe=*t->trapframe;
+  nt->trapframe->a0=0;
+  nt->proc=np;
+  nt->ustack=t->ustack;
+  //the last thing to do,set it to runable.
+  //release(&nt->lock);
+
+  //to avoid deadlock.
+  acquire(&np->lock);
+   //np->
+   if(p->mainthread==t){
+     np->mainthread=nt;
+   }
+    // only one thread,do not have to acquire the thread_list lock.
+  np->thread_list.next=nt;
+  //release(&np->lock);
+  //acquire(&nt->lock);
+  nt->thread_list.prev=&np->thread_list;
+  nt->state=RUNNABLE;
+  //release(&nt->lock);
   release(&np->lock);
-  
-
-
-  //flush_all_tlb();
+  release(&nt->lock);
   return pid;
 }
 

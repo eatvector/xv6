@@ -56,7 +56,7 @@ wakeup(void *chan)
 {
   struct thread *t;
 
-  for(t = proc; t < &thread[NPROC]; t++) {
+  for(t = thread; t < &thread[NPROC]; t++) {
     if(t != mythread()){
       acquire(&t->lock);
       if(t->state == SLEEPING && t->chan == chan) {
@@ -131,13 +131,13 @@ sched(void)
 void
 yield(void)
 {
-  struct proc *p = myproc();
-  acquire(&p->lock);
-  p->state = RUNNABLE;
+  struct proc *t = mythread();
+  acquire(&t->lock);
+  t->state = RUNNABLE;
   // goto scheduler and release the lock.
   sched();
   //have set the pc and sp ,just release the lock.
-  release(&p->lock);
+  release(&t->lock);
 }
 
 // A fork child's very first scheduling by scheduler()
@@ -245,7 +245,8 @@ found:
   for(int i=0;i<NTHREAD;i++){
     if((p->usatckbitmap&(1<<i))==0){
         // find a free ustack
-       ustack=p->ustack_start+i*2*PGSIZE;
+       //ustack=p->ustack_start+i*2*PGSIZE;
+       ustack=USTACK(p->ustack_start,i);
        //mark it as used
        p->usatckbitmap|=(1<<i);
     }
@@ -262,7 +263,8 @@ found:
    struct proc *p=myproc();
    //struct thread 
    acquire(&p->lock);
-   int i=(ustack-p->ustack_start)/PGSIZE;
+   int i=USTACKI(p->ustack_start,ustack);
+  // int i=(ustack-p->ustack_start)/PGSIZE;
    if(i<0||i>=NTHREAD){
     panic("Error ustack");
    }

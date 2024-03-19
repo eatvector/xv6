@@ -87,6 +87,12 @@ static const MemMapEntry virt_memmap[] = {
 // map kernel stacks beneath the trampoline,
 // each surrounded by invalid guard pages.
 #define KSTACK(t) (TRAMPOLINE - ((t)+1)* 2*PGSIZE)
+ //ustack=p->ustack_start+i*2*PGSIZE;
+
+#define USTACK(start,i) ((start)+2*(i)*PGSIZE)
+//(ustack-p->ustack_start)/PGSIZE;
+#define USTACKI(start,ustack) (((ustack)-(start))/(2*PGSIZE))
+
 
 // User memory layout.
 // Address zero first:
@@ -98,6 +104,7 @@ static const MemMapEntry virt_memmap[] = {
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME(i) (TRAMPOLINE - (i+1)*PGSIZE)
+#define TRAPFRAMEI(va) (((TRAMPOLINE-(va))/PGSIZE)-1)
 
 
 //for memory map file
