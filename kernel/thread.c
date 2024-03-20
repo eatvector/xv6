@@ -11,6 +11,11 @@ struct  spinlock  tid_lock;
 
 struct thread *mythread(){
       //implement this function
+  push_off();// can not disable M mode interrupt
+  struct cpu *c = mycpu();
+  struct thread *p = c->thread;
+  pop_off();
+  return p;
 }
 
 
@@ -295,13 +300,6 @@ void freethread(struct thread *t){
   t->proc=0;
   t->state=UNUSED; 
 }
-
-
-
-
-
-
-
 
 //never user attr in xv6
 int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
