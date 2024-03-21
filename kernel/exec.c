@@ -19,9 +19,6 @@ int flags2perm(int flags)
     return perm;
 }
 
-
-
-
 //we should stop all other thread that is running.
 int
 exec(char *path, char **argv)
@@ -43,10 +40,6 @@ exec(char *path, char **argv)
   //  kill all  thread in current process.
   kill_wait();
  
-  acquire(&t->lock);
-  t->killed=0;
-  release(&t->lock);
-
   //initmutextlock(&p->lock,"procmutextlock");
   
 
@@ -97,6 +90,7 @@ exec(char *path, char **argv)
 
 // do we need to lock this?
 //just use 
+// in here we have map the trapframe.
   if((pagetable = proc_pagetable(t)) == 0)
     goto bad;
   int trapframei=TRAPFRAMEI(t->trapframeva);
@@ -207,39 +201,38 @@ exec(char *path, char **argv)
   // argc is returned via the system call return
   // value, which goes in a0.
 
-   
-  mainthread->trapframe->a1 = sp;
-
   // Save program name for debugging.
   for(last=s=path; *s; s++)
     if(*s == '/')
       last = s+1;
   safestrcpy(p->name, last, sizeof(p->name));
 
-
    // do we nned hold lock?
+   // t still in thread list
   struct thread *mainthread=t;
 
-
-  mainthread->proc=p;
+  acquire(&mainthread->lock);
+  //mainthread->proc=p;
   p->mainthread=mainthread;
+
+  mainthread->ustack=p->ustack_start;
+
+  mainthread->trapframe->a1 = sp;
+  mainthread->trapframe->epc = elf.entry;  // initial program counter = main
+  mainthread->trapframe->sp = sp; // initial stack pointer
   release(&mainthread->lock);
 
 
-  p->thread_list.next=&mainthread->thread_list;
-  mainthread->thread_list.prev=& p->thread_list;
-
 
   // i do not know here ,may allocate a new tramframe?
-  mainthread->ustack=p->ustack_start;
-  mainthread->trapframeva=TRAPFRAME(0);
+  //mainthread->ustack=p->ustack_start;
+  //mainthread->trapframeva=TRAPFRAME(0);
 
   // Commit to the user image.
   oldpagetable = p->pagetable;
   p->pagetable = pagetable;
   p->sz = sz;
-  mainthread->trapframe->epc = elf.entry;  // initial program counter = main
-  mainthread->trapframe->sp = sp; // initial stack pointer
+
   proc_freepagetable(oldpagetable, oldsz);
 
 
