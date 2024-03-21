@@ -25,7 +25,9 @@ void add_to_threadlist(struct thread *t){
     if(!holding(&p->thread_list_lock)){
       panic("Should hold thread_list_lock\n");
     }
+   // acquire(&p->thread_list_lock);
     add_to_list(&p->thread_list,&t->thread_list);
+   // release()
 }  
 
 void rm_from_threadlist(struct thread *t){
@@ -466,9 +468,6 @@ void thread_exit(uint64 retval){
      }
   }
 
-  t->thread_list.next->prev=t->thread_list.prev;
-  t->thread_list.prev->next=t->thread_list.next;
-
  release(&p->thread_list_lock);
 
   acquire(&t->lock);
@@ -483,8 +482,13 @@ void thread_exit(uint64 retval){
    t->state=ZOMBIE;
   release(&t->lock);
 
-  
+  // p->lock,list->lock,t->lock
   acquire(&p->lock);
+
+  acquire(&p->thread_list_lock);
+  rm_from_threadlist(t);
+  release(&p->thread_list_lock);
+
   p->nthread--;
   if(p->nthread==0){
     p->xstate=0;
