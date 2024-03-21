@@ -10,12 +10,6 @@
 
 #define PIPESIZE 512
 
-
-uint64 pipeacquirecnt;
-uint64 pipereleasecnt;
-
-
-
 struct pipe {
   struct spinlock lock;
   char data[PIPESIZE];
@@ -65,7 +59,7 @@ void
 pipeclose(struct pipe *pi, int writable)
 {
   acquire(&pi->lock);
-  pipeacquirecnt++;
+ // pipeacquirecnt++;
   if(writable){
     pi->writeopen = 0;
     wakeup(&pi->nread);
@@ -75,11 +69,11 @@ pipeclose(struct pipe *pi, int writable)
   }
   if(pi->readopen == 0 && pi->writeopen == 0){
     release(&pi->lock);
-    pipereleasecnt++;
+    //pipereleasecnt++;
     kfree((char*)pi);
   } else{
     release(&pi->lock);
-    pipereleasecnt++;
+    //pipereleasecnt++;
   }
 }
 
@@ -96,19 +90,19 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
   }*/
 
   acquire(&pi->lock);
-  pipeacquirecnt++;
+  //pipeacquirecnt++;
 
   while(i < n){
     if(pi->readopen == 0 || killed(pr)){
       release(&pi->lock);
-       pipereleasecnt++;
+      // pipereleasecnt++;
       return -1;
     }
     if(pi->nwrite == pi->nread + PIPESIZE){ //DOC: pipewrite-full
       wakeup(&pi->nread);
-       pipereleasecnt++;
+      // pipereleasecnt++;
       sleep(&pi->nwrite, &pi->lock);
-      pipeacquirecnt++;
+    //  pipeacquirecnt++;
     } else {
       char ch;
       // here we hold (pi->lock) but copyin may cause sched and then the system panic.
@@ -125,7 +119,7 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
   }
   wakeup(&pi->nread);
   release(&pi->lock);
-  pipereleasecnt++;
+  //pipereleasecnt++;
   return i;
 }
 
@@ -141,16 +135,16 @@ piperead(struct pipe *pi, uint64 addr, int n)
   }*/
 
   acquire(&pi->lock);
-  pipeacquirecnt++;
+ // pipeacquirecnt++;
   while(pi->nread == pi->nwrite && pi->writeopen){  //DOC: pipe-empty
     if(killed(pr)){
       release(&pi->lock);
-      pipereleasecnt++;
+      //pipereleasecnt++;
       return -1;
     }
-    pipereleasecnt++;
+   // pipereleasecnt++;
     sleep(&pi->nread, &pi->lock); //DOC: piperead-sleep
-    pipeacquirecnt++;
+    //pipeacquirecnt++;
   }
   for(i = 0; i < n; i++){  //DOC: piperead-copy
     if(pi->nread == pi->nwrite)
@@ -167,6 +161,6 @@ piperead(struct pipe *pi, uint64 addr, int n)
   }
   wakeup(&pi->nwrite);  //DOC: piperead-wakeup
   release(&pi->lock);
-  pipereleasecnt++;
+  //pipereleasecnt++;
   return i;
 }

@@ -46,6 +46,9 @@ static const MemMapEntry virt_memmap[] = {
 
 */
 
+#ifndef MEMLAYOUT_H
+#define   MEMLAYOUT_H
+#include "param.h"
 
 // qemu puts UART registers here in physical memory.
 #define UART0 0x10000000L
@@ -105,10 +108,33 @@ static const MemMapEntry virt_memmap[] = {
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME(i) (TRAMPOLINE - (i+1)*PGSIZE)
 #define TRAPFRAMEI(va) (((TRAMPOLINE-(va))/PGSIZE)-1)
-
+#define TRAPFRAME_LOW   TRAPFRAME(NPTHREAD-1)
 
 //for memory map file
 #define  NMMAP  64
 // start map from this adress
-#define  MMAPADDR (TRAPFRAME-NMMAP*PGSIZE)
+#define  MMAPADDR (TRAPFRAME_LOW-NMMAP*PGSIZE)
 #define  HEAPMAX   MMAPADDR
+#endif
+
+
+
+/*
+trampline
+trampframe[0]
+*
+*
+*
+trampframe[NPTHREAD-1]
+unused
+heap
+usatck [NPTHREAD-1]
+guard page
+*
+*
+ustack [0]
+guard page
+data
+unused
+text
+*/

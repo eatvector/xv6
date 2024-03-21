@@ -57,7 +57,8 @@ struct thread{
  
   
   int joined;// a thread can be joined by only one thread
- 
+
+  int  killwait;//is call kill_wait()
   
   
   struct list thread_list;

@@ -36,11 +36,16 @@ exec(char *path, char **argv)
   struct proghdr ph;
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
+  struct thread *t=   mythread();
 
 
 
-  //  kill all other thread and this thread.
+  //  kill all  thread in current process.
   kill_wait();
+ 
+  acquire(&t->lock);
+  t->killed=0;
+  release(&t->lock);
 
   //initmutextlock(&p->lock,"procmutextlock");
   
@@ -89,8 +94,13 @@ exec(char *path, char **argv)
   if(elf.magic != ELF_MAGIC)
     goto bad;
 
-  if((pagetable = proc_pagetable(p)) == 0)
+
+// do we need to lock this?
+//just use 
+  if((pagetable = proc_pagetable(t)) == 0)
     goto bad;
+  int trapframei=TRAPFRAMEI(t->trapframeva);
+  p->trapframebitmap=1<<trapframei;
 
   // Load program into memory.
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){
@@ -144,17 +154,8 @@ exec(char *path, char **argv)
   end_op();
   ip = 0;
 
-  p = myproc();
+ // p = myproc();
   uint64 oldsz = p->sz;
-
-
- //when do we free the trapfarme memory;
-  p->usatckbitmap=1;
-  p->trapframebitmap=1;
-  p->nthread=1;
-  
-
-
 
   // Allocate two pages at the next page boundary.
   // Make the first inaccessible as a stack guard.
@@ -162,42 +163,23 @@ exec(char *path, char **argv)
   sz = PGROUNDUP(sz);
   uint64 sz1;
 
-  //allocate NTHREAD  ustackmemory
-  for(int i=0;i<NTHREAD;i++){
-   if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE, PTE_W)) == 0)
+  //allocate NTHREAD  ustack  vamemory
+  //but only allocate one physical page.
+  if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE, PTE_W)) == 0)
      goto bad;
    sz = sz1;
    uvmclear(pagetable, sz-2*PGSIZE);
    sp = sz;
-
-   if(i==0){
-     p->ustack_start=sp;
-     stackbase = sp - PGSIZE;
-     p->usatckbitmap=1;
-   }
-  }
-  
+   p->ustack_start=sp;
+   stackbase = sp - PGSIZE;
+   p->usatckbitmap=1;
  
   // for heap vma.
    p->vma[NPMMAPVMA]=vmaalloc();
    if(p->vma[NPMMAPVMA]==0){
      goto bad;
    }
-   p->vma[NPMMAPVMA]->addr=p->vma[NPMMAPVMA]->end= sp;
-
-
-  // do we nned hold lock?
-  sp=p->ustack_start;
-  struct thread *mainthread=allocthread();
-  mainthread->proc=p;
-  p->mainthread=mainthread;
-  p->thread_list.next=&mainthread->thread_list;
-  mainthread->thread_list.prev=& p->thread_list;
-
-
-  // i do not know here ,may allocate a new tramframe?
-  mainthread->ustack=p->ustack_start;
-  mainthread->trapframeva=TRAPFRAME(0);
+   p->vma[NPMMAPVMA]->addr=p->vma[NPMMAPVMA]->end= sp+(NTHREAD-1)*2*PGSIZE;
 
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
@@ -233,7 +215,25 @@ exec(char *path, char **argv)
     if(*s == '/')
       last = s+1;
   safestrcpy(p->name, last, sizeof(p->name));
-    
+
+
+   // do we nned hold lock?
+  struct thread *mainthread=t;
+
+
+  mainthread->proc=p;
+  p->mainthread=mainthread;
+  release(&mainthread->lock);
+
+
+  p->thread_list.next=&mainthread->thread_list;
+  mainthread->thread_list.prev=& p->thread_list;
+
+
+  // i do not know here ,may allocate a new tramframe?
+  mainthread->ustack=p->ustack_start;
+  mainthread->trapframeva=TRAPFRAME(0);
+
   // Commit to the user image.
   oldpagetable = p->pagetable;
   p->pagetable = pagetable;

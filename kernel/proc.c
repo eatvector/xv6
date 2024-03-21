@@ -185,7 +185,7 @@ freeproc(struct proc *p)
 // Create a user page table for a given process, with no user memory,
 // but with trampoline and trapframe pages.
 pagetable_t
-proc_pagetable(struct thread *mainthread)
+proc_pagetable(struct thread *t)
 {
   pagetable_t pagetable;
 
@@ -208,9 +208,9 @@ proc_pagetable(struct thread *mainthread)
   // trampoline.S.
   ///
 
-  
-  if(mappages(pagetable, TRAPFRAME(0), PGSIZE,
-              (uint64)(mainthread->trapframe), PTE_R | PTE_W) < 0){
+  //walkaddr
+  if(mappages(pagetable, t->trapframeva, PGSIZE,
+              (uint64)(t->trapframe), PTE_R | PTE_W) < 0){
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
     uvmfree(pagetable, 0);
     return 0;

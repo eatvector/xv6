@@ -11,6 +11,7 @@ struct superblock;
 struct vma;
 struct semaphore;
 struct mutexlock;
+struct list;
 #include"riscv.h"
 
 
@@ -103,7 +104,7 @@ void            proc_mapstacks(pagetable_t);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t, uint64);
 int             kill(int);
-int             killed(struct proc*);
+int             (struct proc*);
 void            setkilled(struct proc*);
 struct cpu*     mycpu(void);
 struct cpu*     getmycpu(void);
@@ -238,7 +239,9 @@ struct thread* allocthread(void);
 struct thread *mythread();
 void kill_wait();
 
-
+//list.c
+void add_to_list(struct list *add_pos, struct list*add_obj);
+void rm_from_list(struct list*rm_obj);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

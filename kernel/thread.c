@@ -19,6 +19,23 @@ struct thread *mythread(){
 }
 
 
+// do not need to hold t->lock
+void add_to_threadlist(struct thread *t){
+    struct proc *p=myproc();
+    if(!holding(&p->thread_list_lock)){
+      panic("Should hold thread_list_lock\n");
+    }
+    add_to_list(&p->thread_list,&t->thread_list);
+}  
+
+void rm_from_threadlist(struct thread *t){
+  struct proc *p=myproc();
+  if(!holding(&p->thread_list_lock)){
+     panic("Should hold thread_list_lock\n");
+  } 
+  rm_from_list(&t->thread_list);
+}
+
 // Atomically release lock and sleep on chan.
 // Reacquires lock when awakened.
 void
@@ -288,6 +305,11 @@ void freethread(struct thread *t){
   //t->priority=0;
   //t->state=UNUSED;
   struct proc*p=t->proc;
+  //give up the userstack
+  assert(p);
+
+
+
   if(p){
     if(t->isustackalloc){
        //add mutex lock
@@ -371,26 +393,26 @@ int threadkilled(struct thread *thread){
    return k;
 }
 
-//must hold lst
+//must hold thread->lock.
+//thread is the thread we join on.
 int  do_thread_join(struct thread*thread){
    //struct proc *p=myproc();
   // struct thread *t=mythread();
    if(!holding(&thread->lock)){
        panic("Should hold thread lock");
    }
-  struct thread *tt=thread;
   // the thread tt has been joined.
-   if(&tt->joined==1){
+   if(&thread->joined==1){
      return -1;
    }
 
  // int join_flag=0;
-
-   while(tt->state!=ZOMBIE){
-       tt->joined=1;
+ // if the wait thread is keilled,the join will quickly return .
+   while(thread->state!=ZOMBIE&&!thread->killwait){
+       thread->joined=1;
        // tt exit will set tt->joined before wake up t
       // if(threadkilled())
-       sleep(tt,&tt->lock); 
+       sleep(thread,&thread->lock); 
   }
    //assert()
  // release(&tt->lock);
@@ -417,25 +439,8 @@ void thread_exit(uint64 retval){
   userstackfree(t->ustack);
   t->ustack=0;
 
-  acquire(&t->lock);
-   t->xstate=0;
-  //release(&t->lock);
-
-  // this thread is exit,but 
-  if(t->joined){
-   // wakeup(t);
-    t->joined=0;
-  }
-   t->state=ZOMBIE;
-  release(&t->lock);
-
-  acquire(&p->lock);
-  p->nthread--;
-  release(&p->lock);
-
-
-  wakeup(t);
-  
+  struct thread *tt;
+  struct list *l;
 
   //rember to initial it
   acquire(&p->thread_list_lock);
@@ -444,12 +449,6 @@ void thread_exit(uint64 retval){
   //rm from list
   //t->prev->next=t->next;
   //have bugs?
-  t->thread_list.next->prev=t->thread_list.prev;
-  t->thread_list.prev->next=t->thread_list.next;
- 
-  struct thread *tt;
-  struct list *l;
-
    //is p->mainthread clean?
   if(t==p->mainthread){
     //wait for other thread exit
@@ -466,17 +465,38 @@ void thread_exit(uint64 retval){
        l=l->next;
      }
   }
+
+  t->thread_list.next->prev=t->thread_list.prev;
+  t->thread_list.prev->next=t->thread_list.next;
+
  release(&p->thread_list_lock);
 
+  acquire(&t->lock);
+   t->xstate=0;
+  //release(&t->lock);
 
-  //if no 
-  //all other thread is exit
+  // this thread is exit,but 
+  if(t->joined){
+   // wakeup(t);
+    t->joined=0;
+  }
+   t->state=ZOMBIE;
+  release(&t->lock);
+
+  
   acquire(&p->lock);
+  p->nthread--;
   if(p->nthread==0){
     p->xstate=0;
     p->state=ZOMBIE;
   }
   release(&p->lock);
+
+// konw that this thread is end and can see yhe nthread
+  wakeup(t);
+
+  //if no 
+  //all other thread is exit
 
   sched();
   panic("thread exit never reach here\n");
@@ -509,23 +529,33 @@ int thread_join(int tid,void **retval){
   if(l==0)
     return -1;
 
-  int ret=do_thread_join(tid);
+  int ret=do_thread_join(tt);
 
   release(&tt->lock);
+  return ret;
 }
 
 // kill all other thread ,and wait  they call thread_exit.
 // set current thread state to ZOMBIE
+// first we acquire thread_list lock,the we can acquire thread lock
+
+// kill and wait all other thread to sate to ZOMBIE.
 void kill_wait(){
   struct thread *t=mythread();
   struct proc *p=myproc();
 
   acquire(&t->lock);
-  t->state=ZOMBIE;
+  //t->state=ZOMBIE;
+  //t->killed=1;
+  // i call kill wait
+  t->killwait=1;
   t->joined=0;
+
   release(&t->lock);
 
   wakeup(&t);
+
+
   struct list *l=p->thread_list.next;
   struct thread *tt;
 
@@ -556,7 +586,10 @@ while(l){
  l=l->next;
 }
 
-release(&p->thread_list);
+acquire(&t->lock);
+ t->killwait=0;
+release(&t->lock);
+
 
 }
 
