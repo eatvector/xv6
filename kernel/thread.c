@@ -317,7 +317,7 @@ void trapframefree(uint64 trapframeva){
 // should be called by thread_joined.
 // t->state ZOMBINE no one can acess it.
 // what lock do we need to hold.
-void freethread(struct thread *t){
+void freethread(struct thread *t,int unmap){
 
   struct proc*p=t->proc;
   //give up the userstack
@@ -328,12 +328,18 @@ void freethread(struct thread *t){
     kfree((void *)t->trapframe);
   }
 
+
+  //have error here?
   if(t->trapframeva){
     // free bit map
     // the page table free will happen in  freeproc.
     trapframefree(t->trapframeva);
+
+    if(unmap){
+       uvmunmap(p->pagetable,t->trapframeva,1,0);
+    }
+
     //avoid remap.
-    uvmunmap(p->pagetable,t->trapframeva,1,0);
     t->trapframeva=0;
   }
 
@@ -381,18 +387,17 @@ found:
       goto bad;
   }
 
-  uint64  trapframeva;
-  if((trapframeva=trapframeallocate())==0){
+  //uint64  trapframeva;
+  if((t->trapframeva=trapframeallocate())==0){
       goto bad;
   }
 
 // remap may happened.
-  if(mappages(p->pagetable, trapframeva, PGSIZE,
+  if(mappages(p->pagetable, t->trapframeva, PGSIZE,
               (uint64)(t->trapframe), PTE_R | PTE_W) < 0){
       goto bad;
   }
  
-  t->trapframeva=trapframeva;
 
 
   memset(&t->context, 0, sizeof(t->context));
@@ -404,7 +409,7 @@ found:
   return t;  //remember that t is locked.
 
   bad:
-    freethread(t);
+    freethread(t,0);
     release(&t->lock);
     release(&p->lock);
     return 0;
@@ -620,10 +625,11 @@ int thread_join(int tid,void **retval){
 
   int ret=do_thread_join(tt);
   // free the waiting thread.
-  freethread(tt);
+  freethread(tt,1);
 
-  release(&p->lock);
+  //release(&p->lock);
   release(&tt->lock);
+  release(&p->lock);
   return ret;
 }
 
@@ -681,7 +687,6 @@ while(l){
 acquire(&t->lock);
  t->killwait=0;
 release(&t->lock);
-
 
 }
 
