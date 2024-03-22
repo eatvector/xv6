@@ -376,7 +376,7 @@ found:
 
   // Allocate a trapframe page.
   
-  if((t->7 = (struct trapframe *)kalloc()) == 0){
+  if((t->trapframe= (struct trapframe *)kalloc()) == 0){
    // freeproc(p);
       goto bad;
   }
@@ -599,6 +599,7 @@ int thread_join(int tid,void **retval){
   //never use retval
   struct proc *p=myproc();
   struct list *l=p->thread_list.next;
+  acquire(&p->lock);
   acquire(&p->thread_list);
   struct thread *tt;
      while(l){
@@ -612,13 +613,16 @@ int thread_join(int tid,void **retval){
      }
   release(&p->thread_list);
 
-  if(l==0)
+  if(l==0){
+    release(&p->lock);
     return -1;
+  }
 
   int ret=do_thread_join(tt);
   // free the waiting thread.
   freethread(tt);
 
+  release(&p->lock);
   release(&tt->lock);
   return ret;
 }
