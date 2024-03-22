@@ -157,23 +157,30 @@ exec(char *path, char **argv)
   sz = PGROUNDUP(sz);
   uint64 sz1;
 
-  //allocate NTHREAD  ustack  vamemory
-  //but only allocate one physical page.
-  if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE, PTE_W)) == 0)
-     goto bad;
-   sz = sz1;
-   uvmclear(pagetable, sz-2*PGSIZE);
-   sp = sz;
-   p->ustack_start=sp;
-   stackbase = sp - PGSIZE;
-   p->usatckbitmap=1;
- 
+  //allocate NTHREAD  ustack  vamemory  and pmemory
+  
+  for(int i=0;i<NPTHREAD;i++){
+    if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE, PTE_W)) == 0)
+      goto bad;
+    sz = sz1;
+    uvmclear(pagetable, sz-2*PGSIZE);
+    sp = sz;
+    if(i==0){
+      p->ustack_start=sp;
+      stackbase = sp - PGSIZE;
+      p->usatckbitmap=1;
+    }
+  }
+
   // for heap vma.
    p->vma[NPMMAPVMA]=vmaalloc();
    if(p->vma[NPMMAPVMA]==0){
      goto bad;
    }
-   p->vma[NPMMAPVMA]->addr=p->vma[NPMMAPVMA]->end= sp+(NTHREAD-1)*2*PGSIZE;
+   p->vma[NPMMAPVMA]->addr=p->vma[NPMMAPVMA]->end= sp;
+
+  
+  sp= p->ustack_start;
 
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {

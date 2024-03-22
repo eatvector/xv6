@@ -3,6 +3,7 @@
 #include"spinlock.h"
 #include "thread.h"
 #include "param.h"
+#include "memlayout.h"
 
 struct thread thread[NTHREAD];
 int nexttid=0;
@@ -225,8 +226,139 @@ thread_mapstacks(pagetable_t kpgtbl)
   }
 }
 
+//need modify
+// the truely physical is in father process 's wait
+// may thread may call this .
+ uint64 userstackallocate(){
+  struct proc*p=myproc();
+  if(!holding(&p->lock)){
+    panic("Should hold proc lock.");
+  }
+  //acquire(&p->lock);
+  uint ustack=0;
+  //int t=1;
+  for(int i=0;i<NTHREAD;i++){
+    if((p->usatckbitmap&(1<<i))==0){
+        // find a free ustack
+       //ustack=p->ustack_start+i*2*PGSIZE;
+       ustack=USTACK(p->ustack_start,i);
+       p->usatckbitmap|=(1<<i);
+    }
+  }
+  //release(&p->lock);
+   // can not allocate usertack
+   return ustack;
+}
+
+
+// only one thread will calling this so we do not need any lock.
+ void userstackfree(uint64 ustack){
+   if(ustack%PGSIZE){
+     panic("Error ustack");
+   }
+    struct proc*p=myproc();
+   if(!holding(&p->lock)){
+    panic("Should hold proc lock.");
+  }
+   //struct thread 
+   //acquire(&p->lock);
+   int i=USTACKI(p->ustack_start,ustack);
+  // int i=(ustack-p->ustack_start)/PGSIZE;
+   if(i<0||i>=NTHREAD){
+    panic("Error ustack");
+   }
+   //mark it unused.
+   p->usatckbitmap&=~(1<<i);
+  // release(&p->lock);
+}
+
+uint64  trapframeallocate(){
+  struct proc*p=myproc();
+  uint64 trapframeva=0;
+  if(!holding(&p->lock)){
+    panic("Should hold proc lock.");
+  }
+  for(int i=0;i<NTHREAD;i++){
+    if((p->trapframebitmap&(1<<i))==0){
+        // find a free ustack
+       //ustack=p->ustack_start+i*2*PGSIZE;
+       trapframeva=TRAPFRAME(i);
+       //ustack=USTACK(p->ustack_start,i);
+       p->trapframebitmap|=(1<<i);
+    }
+  }
+return  trapframeva;                                                                                                          
+}
+
+void trapframefree(uint64 trapframeva){
+   if(trapframeva%PGSIZE){
+     panic("Error trapframeva");
+   }
+   struct proc *p=myproc();
+   int i=TRAPFRAMEI(trapframeva);
+
+   if(!holding(&p->lock)){
+    panic("Should hold proc lock.");
+  }
+  // int i=(ustack-p->ustack_start)/PGSIZE;
+   if(i<0||i>=NTHREAD){
+    panic("Error ustack");
+   }
+   //mark it unused.
+   p->trapframebitmap&=~(1<<i);
+  // release(&p->lock);
+}
+
+// how does free proc works?
+// free ustack bitsmap
+// and ustack
+//free trapframe bitsmap
+// and trapframe va.
+// should be called by thread_joined.
+// t->state ZOMBINE no one can acess it.
+// what lock do we need to hold.
+void freethread(struct thread *t){
+
+  struct proc*p=t->proc;
+  //give up the userstack
+  assert(p);
+
+  //for trapframe
+  if(t->trapframe){
+    kfree((void *)t->trapframe);
+  }
+
+  if(t->trapframeva){
+    // free bit map
+    // the page table free will happen in  freeproc.
+    trapframefree(t->trapframeva);
+    //avoid remap.
+    uvmunmap(p->pagetable,t->trapframeva,1,0);
+    t->trapframeva=0;
+  }
+
+ if(t->ustack){
+     userstackfree(t->ustack);
+     t->ustack=0;
+ }
+
+  t->tid=0;
+  t->killed=0;
+  t->joined=0;
+  t->proc=0;
+  t->killwait=0;
+  //t->thread_list=0;
+  t->xstate=0;
+  t->state=UNUSED; 
+}
+
+
+//p->lock  p->xxxlist lock thread lock
 struct thread* allocthread(void){
     struct thread *t;
+    struct proc *p=myproc();
+    acquire(&p->lock);
+
     for(t = thread; t< &thread[NTHREAD]; t++) {
       acquire(&t->lock);
       if(t->state == UNUSED) {
@@ -235,94 +367,47 @@ struct thread* allocthread(void){
         release(&t->lock);
       }
     }
+    release(&p->lock);
     return 0;
 
 found:
   t->tid = alloctid();
   t->state = USED;
 
-  // need modify?
- // t->proc=myproc();
-
- // t->joined=0;
-
   // Allocate a trapframe page.
-  if((t->trapframe = (struct trapframe *)kalloc()) == 0){
+  
+  if((t->7 = (struct trapframe *)kalloc()) == 0){
    // freeproc(p);
-    release(&t->lock);
-    return 0;
+      goto bad;
   }
+
+  uint64  trapframeva;
+  if((trapframeva=trapframeallocate())==0){
+      goto bad;
+  }
+
+// remap may happened.
+  if(mappages(p->pagetable, trapframeva, PGSIZE,
+              (uint64)(t->trapframe), PTE_R | PTE_W) < 0){
+      goto bad;
+  }
+ 
+  t->trapframeva=trapframeva;
+
 
   memset(&t->context, 0, sizeof(t->context));
   t->context.ra = (uint64)forkret;
 
   //where do we allocate the kstack?
   t->context.sp = t->kstack + PGSIZE;
-}
-
-//need modify
- uint64 userstackallocate(){
-  struct proc*p=myproc();
-  acquire(&p->lock);
-  uint ustack=0;
-  //int t=1;
-  for(int i=0;i<NTHREAD;i++){
-    if((p->usatckbitmap&(1<<i))==0){
-        // find a free ustack
-       //ustack=p->ustack_start+i*2*PGSIZE;
-       ustack=USTACK(p->ustack_start,i);
-       //mark it as used
-       p->usatckbitmap|=(1<<i);
-    }
-  }
   release(&p->lock);
-   // can not allocate usertack
-   return ustack;
-}
+  return t;  //remember that t is locked.
 
- void userstackfree(uint64 ustack){
-   if(ustack%PGSIZE){
-     panic("Error ustack");
-   }
-   struct proc *p=myproc();
-   //struct thread 
-   acquire(&p->lock);
-   int i=USTACKI(p->ustack_start,ustack);
-  // int i=(ustack-p->ustack_start)/PGSIZE;
-   if(i<0||i>=NTHREAD){
-    panic("Error ustack");
-   }
-   //mark it unused.
-   p->usatckbitmap&=~(1<<i);
-   release(&p->lock);
-}
-
-void freethread(struct thread *t){
-  if(t->trapframe)
-    kfree((void *)t->trapframe);
-  t->tid=0;
-  t->killed=0;
-  t->joined=0;
-  // not sure here
-  //t->priority=0;
-  //t->state=UNUSED;
-  struct proc*p=t->proc;
-  //give up the userstack
-  assert(p);
-
-
-
-  if(p){
-    if(t->isustackalloc){
-       //add mutex lock
-       // other can use it as a ustackva
-      p->usatckbitmap&=~(1<<t->ustackid);
-    }
-    t->isustackalloc=0;
-    t->ustackid=0;
-  }
-  t->proc=0;
-  t->state=UNUSED; 
+  bad:
+    freethread(t);
+    release(&t->lock);
+    release(&p->lock);
+    return 0;
 }
 
 //never user attr in xv6
@@ -363,6 +448,8 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
     goto bad;
   
 
+
+
   //set trapframe for this thread. 
    newt->trapframe->a1=sp;
    newt->trapframe->sp=sp;
@@ -375,6 +462,7 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
    release(&p->lock);
 
 bad:
+//freethread
 return -1;
 
 }
@@ -420,15 +508,12 @@ int  do_thread_join(struct thread*thread){
  // release(&tt->lock);
 }
 
-
 void thread_exit(uint64 retval){
   // main thread is very special,wait kid process
   //may need to wakeup kid process join it
   //then only exit it self.
   // we do not use retval//
   //assert()
-
-    
   //release the lock we hold.
   //release resources.
   // do we need to free kstack and ustack?
@@ -437,9 +522,6 @@ void thread_exit(uint64 retval){
   struct thread *t=mythread(); 
   assert(p==t->proc);
 
-  //give up the userstack
-  userstackfree(t->ustack);
-  t->ustack=0;
 
   struct thread *tt;
   struct list *l;
@@ -534,6 +616,8 @@ int thread_join(int tid,void **retval){
     return -1;
 
   int ret=do_thread_join(tt);
+  // free the waiting thread.
+  freethread(tt);
 
   release(&tt->lock);
   return ret;

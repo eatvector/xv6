@@ -229,6 +229,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   //free each thread's trapframe.
   // did i need to do this?
+  // may not need this.
   for(int i=0;i<NTHREAD;i++){
      if(p->trapframebitmap&(1<<i)){
         uvmunmap(pagetable, TRAPFRAME(i), 1, 0);
