@@ -237,6 +237,7 @@ uint64 userstackallocate();
 void userstackfree(uint64 ustack);
 struct thread* allocthread(void);
 struct thread *mythread();
+void thread_exit(uint64 retval);
 void kill_wait();
 
 //list.c

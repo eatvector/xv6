@@ -528,16 +528,21 @@ exit(int status)
 
   // Parent might be sleeping in wait().
   wakeup(p->parent);
+
+  //end the last thread
+  thread_exit(0);
   
   acquire(&p->lock);
-
+  assert(p->state ==ZOMBIE);
   p->xstate = status;
   // call exit the proc is set ZOMBIE.
-  p->state = ZOMBIE;
+ // p->state = ZOMBIE; 
+  release(&p->lock) ;
 
   release(&wait_lock);
 
   // Jump into the scheduler, never to return.
+  // only hold the thread lock.
   sched();
   panic("zombie exit");
 }

@@ -618,15 +618,23 @@ void thread_exit(uint64 retval){
   acquire(&p->thread_list_lock);
   rm_from_threadlist(t);
   release(&p->thread_list_lock);
+  
+  acquire(&t->lock);
 
   p->nthread--;
   if(p->nthread==0){
+    // must be main thread
     p->xstate=0;
     p->state=ZOMBIE;
+    // the last thread,no one wait on this,so it should free thread it self.
+   // acquire(&t->lock);
+    freethread(t,1);
+    //release(&t->lock);
   }
   release(&p->lock);
 
 // konw that this thread is end and can see yhe nthread
+// the wakeup thread needs to 
   wakeup(t);
 
   //if no 
