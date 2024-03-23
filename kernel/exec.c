@@ -159,25 +159,27 @@ exec(char *path, char **argv)
 
   //allocate NTHREAD  ustack  vamemory  and pmemory
   
-  for(int i=0;i<NPTHREAD;i++){
+ // for(int i=0;i<NPTHREAD;i++){
+   //only allocate the 
     if((sz1 = uvmalloc(pagetable, sz, sz + 2*PGSIZE, PTE_W)) == 0)
       goto bad;
     sz = sz1;
     uvmclear(pagetable, sz-2*PGSIZE);
     sp = sz;
-    if(i==0){
+    //if(i==0){
       p->ustack_start=sp;
       stackbase = sp - PGSIZE;
       p->usatckbitmap=1;
-    }
-  }
+   // }
+  //}
 
   // for heap vma.
    p->vma[NPMMAPVMA]=vmaalloc();
    if(p->vma[NPMMAPVMA]==0){
      goto bad;
    }
-   p->vma[NPMMAPVMA]->addr=p->vma[NPMMAPVMA]->end= sp;
+   // is here have bugs?
+   p->vma[NPMMAPVMA]->addr=p->vma[NPMMAPVMA]->end= sp+(NPTHREAD-1)*2*PGSIZE;
 
   
   sp= p->ustack_start;

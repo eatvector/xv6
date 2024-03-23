@@ -210,7 +210,7 @@ alloctid()
   return tid;
 }
 
-
+// allocate each thread's kernel stack.
 void
 thread_mapstacks(pagetable_t kpgtbl)
 {
@@ -345,6 +345,9 @@ void freethread(struct thread *t,int unmap){
 
  if(t->ustack){
      userstackfree(t->ustack);
+     if(unmap){
+        uvmunmap(p->pagetable,t->ustack-2*PGSIZE,2,1);
+     }
      t->ustack=0;
  }
 
@@ -398,6 +401,37 @@ found:
       goto bad;
   }
  
+  char *usatck_page;
+  char *guard_page;
+
+  if((usatck_page=kalloc)==0||(guard_page==kalloc())==0){
+     goto bad;
+  }
+
+  if((t->ustack=userstackallocate())==0){
+    goto bad;
+  }
+
+  //mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
+  // allocate physiacal page for ustack and guard page.
+  if((guard_page==kalloc())==0){
+    goto bad;
+  }
+
+  if(mappages(p->pagetable,t->ustack-2*PGSIZE,PGSIZE,guard_page,0)==-1){
+      kfree(guard_page);
+     goto bad;
+  }
+
+  if((usatck_page=kalloc)==0){
+     goto bad;
+  }
+
+  if(mappages(p->pagetable,t->ustack-PGSIZE,PGSHIFT,usatck_page,PTE_R|PTE_W|PTE_U)==-1){
+      kfree(usatck_page);
+      uvmunmap(p->pagetable,t->ustack-2*PGSIZE,1,1);
+      goto bad;
+  }
 
 
   memset(&t->context, 0, sizeof(t->context));
@@ -509,6 +543,15 @@ int  do_thread_join(struct thread*thread){
       // if(threadkilled())
        sleep(thread,&thread->lock); 
   }
+
+  //if thread state got to ZOMNIE.
+  if(!thread->killwait){
+    freethread(thread,1);
+  }
+  //  free
+  // freethread(thread);
+
+
    //assert()
  // release(&tt->lock);
 }
@@ -625,7 +668,7 @@ int thread_join(int tid,void **retval){
 
   int ret=do_thread_join(tt);
   // free the waiting thread.
-  freethread(tt,1);
+  //freethread(tt,1);
 
   //release(&p->lock);
   release(&tt->lock);
