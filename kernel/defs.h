@@ -12,6 +12,7 @@ struct vma;
 struct semaphore;
 struct mutexlock;
 struct list;
+struct thread;
 #include"riscv.h"
 
 
@@ -137,6 +138,7 @@ void            acquiresleep(struct sleeplock*);
 void            releasesleep(struct sleeplock*);
 int             holdingsleep(struct sleeplock*);
 void            initsleeplock(struct sleeplock*, char*);
+int acquiresleep_kill(struct sleeplock *lk);
 
 // string.c
 int             memcmp(const void*, const void*, uint);
@@ -225,9 +227,7 @@ void sema_v(struct semaphore *s);
   
 //mutexlock.c
 void initmutextlock(struct mutexlock *mutexlock,char *name);
-
-void mutexlock(struct mutexlock *mutexlock)
-
+void mutexlock(struct mutexlock *mutexlock);
 void mutexunlock(struct mutexlock *mutexlock);
 
 
@@ -239,6 +239,15 @@ struct thread* allocthread(void);
 struct thread *mythread();
 void thread_exit(uint64 retval);
 void kill_wait();
+int thread_create(int *tid,void *attr,void *(start)(void*),void *args);
+int thread_join(int tid,void **retval);
+int threadkilled(struct thread *thread);
+
+
+
+
+
+
 
 //list.c
 void add_to_list(struct list *add_pos, struct list*add_obj);

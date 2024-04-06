@@ -60,7 +60,8 @@ procinit(void)
   initlock(&wait_lock, "wait_lock");
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
-      initlock(&p->thread_list_lock,"thread_list_lock");
+      //modufify  sleep lock.
+     // initlock(&p->thread_list_lock,"thread_list_lock");
       initmutextlock(&p->vmalock,"vmalock");
       // all is free
       p->mmapbitmap=0xFFFF;
@@ -443,6 +444,10 @@ fork(void)
   //to avoid deadlock.
   acquire(&np->lock);
    //np->
+
+
+   //need to modify here 
+   // also fork will use yhe p->mainthread.
    if(p->mainthread==t){
      np->mainthread=nt;
    }

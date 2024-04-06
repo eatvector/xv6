@@ -23,8 +23,8 @@ struct thread *mythread(){
 // do not need to hold t->lock
 void add_to_threadlist(struct thread *t){
     struct proc *p=myproc();
-    if(!holding(&p->thread_list_lock)){
-      panic("Should hold thread_list_lock\n");
+    if(!holding(&p->lock)){
+      panic("Should hold process lock\n");
     }
    // acquire(&p->thread_list_lock);
     add_to_list(&p->thread_list,&t->thread_list);
@@ -33,8 +33,8 @@ void add_to_threadlist(struct thread *t){
 
 void rm_from_threadlist(struct thread *t){
   struct proc *p=myproc();
-  if(!holding(&p->thread_list_lock)){
-     panic("Should hold thread_list_lock\n");
+  if(!holding(&p->lock)){
+     panic("Should hold process_lock\n");
   } 
   rm_from_list(&t->thread_list);
 }
@@ -138,10 +138,17 @@ sched(void)
 
   if(!holding(&t->lock))
     panic("sched p->lock");
+
+  //may hold more than one lock
+  //modify the  exec.
+
+
+  // avoid dead lock
   if(mycpu()->noff != 1){
    // printf("noff :%d\n",mycpu()->noff);
     panic("sched locks");
   }
+
   if(t->state == RUNNING)
     panic("sched running");
   if(intr_get())
@@ -318,7 +325,6 @@ void trapframefree(uint64 trapframeva){
 // t->state ZOMBINE no one can acess it.
 // what lock do we need to hold.
 void freethread(struct thread *t,int unmap){
-
   struct proc*p=t->proc;
   //give up the userstack
   assert(p);
@@ -327,7 +333,6 @@ void freethread(struct thread *t,int unmap){
   if(t->trapframe){
     kfree((void *)t->trapframe);
   }
-
 
   //have error here?
   if(t->trapframeva){
@@ -463,6 +468,7 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
 
    // do something
    //struct thread   oldt;
+   acquire(&p->lock);
    struct thread *newt=allocthread();
 
    if(newt==0){
@@ -496,12 +502,14 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
 
    newt->state=RUNNABLE;
 
-   acquire(&p->lock);
+   //acquire(&p->lock);
    p->nthread++;
    release(&p->lock);
 
 bad:
 //freethread
+release(&newt->lock);
+release(&p->lock);
 return -1;
 
 }
@@ -525,11 +533,11 @@ int threadkilled(struct thread *thread){
 //must hold thread->lock.
 //thread is the thread we join on.
 int  do_thread_join(struct thread*thread){
-   //struct proc *p=myproc();
-  // struct thread *t=mythread();
+  
    if(!holding(&thread->lock)){
        panic("Should hold thread lock");
    }
+
   // the thread tt has been joined.
    if(&thread->joined==1){
      return -1;
@@ -556,169 +564,43 @@ int  do_thread_join(struct thread*thread){
  // release(&tt->lock);
 }
 
-void thread_exit(uint64 retval){
-  // main thread is very special,wait kid process
-  //may need to wakeup kid process join it
-  //then only exit it self.
-  // we do not use retval//
-  //assert()
-  //release the lock we hold.
-  //release resources.
-  // do we need to free kstack and ustack?
+void kill_join(){
 
+  struct thread *t=mythread();
   struct proc *p=myproc();
-  struct thread *t=mythread(); 
-  assert(p==t->proc);
-
-
   struct thread *tt;
   struct list *l;
 
-  //rember to initial it
-  acquire(&p->thread_list_lock);
-
-
-  //rm from list
-  //t->prev->next=t->next;
-  //have bugs?
-   //is p->mainthread clean?
-  if(t==p->mainthread){
-    //wait for other thread exit
-    l=p->thread_list.next;
-
-    // killthread(tt->tid);
-     while(l){
-       tt=list_entry(l,struct thread,thread_list);
-
-       acquire(&tt->lock);
-       do_thread_join(tt);
-       // have bug
-       release(&tt->lock);
-       l=l->next;
-     }
+  // only allow one thread enter this
+  //acquire(&p->kill_join_lock);
+   // only one thread will enter this
+  if(acquiresleep_kill(&p->thread_list_lock)==-1){
+    //process has been killed,just return .
+      return ;
   }
-
- release(&p->thread_list_lock);
 
   acquire(&t->lock);
-   t->xstate=0;
-  //release(&t->lock);
-
-  // this thread is exit,but 
-  if(t->joined){
-   // wakeup(t);
-    t->joined=0;
-  }
-   t->state=ZOMBIE;
-  release(&t->lock);
-
-  // p->lock,list->lock,t->lock
-  acquire(&p->lock);
-
-  acquire(&p->thread_list_lock);
-  rm_from_threadlist(t);
-  release(&p->thread_list_lock);
-  
-  acquire(&t->lock);
-
-  p->nthread--;
-  if(p->nthread==0){
-    // must be main thread
-    p->xstate=0;
-    p->state=ZOMBIE;
-    // the last thread,no one wait on this,so it should free thread it self.
-   // acquire(&t->lock);
-    freethread(t,1);
-    //release(&t->lock);
-  }
-  release(&p->lock);
-
-// konw that this thread is end and can see yhe nthread
-// the wakeup thread needs to 
-  wakeup(t);
-
-  //if no 
-  //all other thread is exit
-
-  sched();
-  panic("thread exit never reach here\n");
-}
-
-
-int thread_join(int tid,void **retval){
-  // acquire the spinlock
-  //check id in the same process
-  // process exit
-  //  check the state 
-  //if not sleep onit.
-
-  //never use retval
-  struct proc *p=myproc();
-  struct list *l=p->thread_list.next;
-  acquire(&p->lock);
-  acquire(&p->thread_list);
-  struct thread *tt;
-     while(l){
-      tt=list_entry(l,struct thread,thread_list);
-      acquire(&tt->lock);
-       if(tt->tid==tid){
-         break;
-       }
-       release(&tt->lock);
-       l=l->next;
-     }
-  release(&p->thread_list);
-
-  if(l==0){
-    release(&p->lock);
-    return -1;
-  }
-
-  int ret=do_thread_join(tt);
-  // free the waiting thread.
-  //freethread(tt,1);
-
-  //release(&p->lock);
-  release(&tt->lock);
-  release(&p->lock);
-  return ret;
-}
-
-// kill all other thread ,and wait  they call thread_exit.
-// set current thread state to ZOMBIE
-// first we acquire thread_list lock,the we can acquire thread lock
-
-// kill and wait all other thread to sate to ZOMBIE.
-void kill_wait(){
-  struct thread *t=mythread();
-  struct proc *p=myproc();
-
-  acquire(&t->lock);
-  //t->state=ZOMBIE;
-  //t->killed=1;
-  // i call kill wait
   t->killwait=1;
   t->joined=0;
-
+  
+  //have bugs here?
+  wakeup(&t);
   release(&t->lock);
 
-  wakeup(&t);
-
-
-  struct list *l=p->thread_list.next;
-  struct thread *tt;
+  l=p->thread_list.next;
+  //struct thread *tt;
 
   // kill all other process
-acquire(&p->thread_list);
-while(l){
-  tt=list_entry(l,struct thread,thread_list);
-  if(tt!=t){
-    //acquire()
-    killthread(tt);
-  }
- l=l->next;
-}
+//acquire(&p->thread_list);
 
+  while(l){
+    tt=list_entry(l,struct thread,thread_list);
+    if(tt!=t){
+    //acquire()
+      killthread(tt);
+    }
+  l=l->next;
+  }
 
 l=p->thread_list.next;
 while(l){
@@ -734,12 +616,139 @@ while(l){
   release(&tt->lock);
  l=l->next;
 }
+releasesleep(&p->thread_list_lock);
+
+
 
 acquire(&t->lock);
  t->killwait=0;
 release(&t->lock);
-
 }
+
+// two part atomticly
+void thread_exit(uint64 retval){
+  struct proc *p=myproc();
+  struct thread *t=mythread(); 
+  assert(p==t->proc);
+
+
+  struct thread *tt;
+  struct list *l;
+
+  acquire(&t->lock);
+  t->xstate=0;
+  t->state=ZOMBIE;
+  if(t->joined){
+      wakeup(t);
+      t->joined=0;
+  }
+  release(&t->lock);
+
+
+  acquiresleep(&p->thread_list_lock);
+
+  rm_from_threadlist(t);
+  
+  if(t==p->mainthread){
+    //wait for other thread exit
+    l=p->thread_list.next;
+
+    // killthread(tt->tid);
+     while(l){
+       tt=list_entry(l,struct thread,thread_list);
+       if(tt!=t){
+        acquire(&tt->lock);
+        //before call this function,we can only have one lock.
+        do_thread_join(tt);
+        // have bug
+        release(&tt->lock);
+       }
+       l=l->next;
+     }
+
+    // no one join main_thread ,it should free itself
+    freethread(t,1);
+
+    acquire(&p->lock);
+    p->xstate=0;
+    p->state=ZOMBIE;
+    //should wake up wait?
+    wakeup(p);
+    release(&p->lock);
+  }
+ 
+  releasesleep(&p->thread_list_lock);
+  
+  sched();
+  panic("thread exit never reach here\n");
+}
+
+int thread_join(int tid,void **retval){
+  // acquire the spinlock
+  //check id in the same process
+  // process exit
+  //  check the state 
+  //if not sleep onit.
+
+  //never use retval
+  struct proc *p=myproc();
+  struct list *l;
+  struct thread *t=mythread();
+  struct thread *tt;
+
+  //acquire(&p->lock);
+  //acquire(&p->thread_list);
+  // implement a new sleeplock.
+   acquiresleep_kill(&p->thread_list_lock);
+   l=p->thread_list.next;
+    while(l){
+      tt=list_entry(l,struct thread,thread_list);
+      acquire(&tt->lock);
+       if(tt->tid==tid){
+         break;
+       }
+       release(&tt->lock);
+       l=l->next;
+     }
+    
+  //release(&p->thread_list);
+  // the waiting thread is not exist
+  if(l==0){
+    releasesleep(&p->thread_list_lock);
+    return -1;
+  }else {
+    // can not wait it self
+    if(tt==t){
+      release(&tt->lock);
+      releasesleep(&p->thread_list_lock);
+      return -1;
+    }
+  }
+
+
+  // we hold tt->lock and p->lock
+  int ret=do_thread_join(tt);
+  // free the waiting thread.
+  //freethread(tt,1);
+
+  //release(&p->lock);
+  release(&tt->lock);
+  //release(&p->lock);
+   releasesleep(&p->thread_list_lock);
+  return ret;
+}
+
+// kill all other thread ,and wait  they call thread_exit.
+// set current thread state to ZOMBIE
+// first we acquire thread_list lock,the we can acquire thread lock
+
+// kill and wait all other thread to sate to ZOMBIE.
+
+// three part automatic.
+
+
+// if kill is 1,send signal to all other thread.
+
 
 
 int thread_self(void){

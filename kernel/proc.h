@@ -107,7 +107,8 @@ struct proc {
   //only onr thread can use it's proc
  
   struct spinlock lock;
-
+  // only one thread can in this fuc
+  //struct sleeplock threadlock;
 
   enum procstate state;
 
@@ -136,15 +137,21 @@ struct proc {
   uint64 ustack_start;//
   uint8 usatckbitmap; //is used?
   int nthread;
+ // struct thread *mainthread; 
+  struct sleeplock threadlock;
   struct thread *mainthread; 
+  struct list thread_list;
 
+
+
+  struct   sleeplock  thread_list_lock;
 
 
   uint8 trapframebitmap;
 
   //struct thread *thread_list;// the thread list of this process,nevern use it a thread
-  struct spinlock thread_list_lock;
-  struct list thread_list;
+  //struct spinlock thread_list_lock;
+  //struct list thread_list;
 
   // 
   //int isend;
@@ -153,7 +160,8 @@ struct proc {
   //[0,NPMMAPVMA-1]  for mmap
  //[NPMMAPVMA,NPMMAPVAM+NPHEAPVMA-1]  for heap
  //[NPMMAPVAM+NPHEAPVMA,NPVMA-1] for exec.
-  struct mutexlock vmalock;
+  //struct mutexlock vmalock;
+  struct sleeplock vmalook;
   pagetable_t pagetable;       // User page table
    uint16 mmapbitmap;
   struct vma*vma[NPVMA];
