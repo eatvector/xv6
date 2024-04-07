@@ -141,10 +141,10 @@ struct proc {
   struct sleeplock threadlock;
   struct thread *mainthread; 
   struct list thread_list;
+  struct   spinlock  thread_list_lock;
 
-
-
-  struct   sleeplock  thread_list_lock;
+  //only one thread can call this;
+  int kill_join_call;
 
 
   uint8 trapframebitmap;

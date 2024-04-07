@@ -454,6 +454,15 @@ found:
     return 0;
 }
 
+static int kill_join_call(){
+  int k;
+  struct proc *p=myproc();
+  acquire(&p->lock);
+  k=p->kill_join_call;
+  release(&p->lock);
+  return k;
+}
+
 //never user attr in xv6
 int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
     // allocate a userthread  stack
@@ -463,6 +472,8 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
     //
 
    struct proc *p=myproc();
+   struct thread *t=mythread();
+
    struct thread_func tf=*(struct thread_func *)args;
    uint64 threadargs=(uint64)tf.args;
 
@@ -499,12 +510,29 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
    newt->trapframe->a1=sp;
    newt->trapframe->sp=sp;
    newt->trapframe->epc=(uint64)start;
+   release(newt);
 
    newt->state=RUNNABLE;
 
+   // here dead lock.
+   // lock fuck.
+   acquire(&p->thread_list_lock);
+   if(kill_join_call(p)){
+      acquire(&newt->lock);
+      freethread(newt,1);
+      release(&newt->lock);
+      release(&p->thread_list_lock);
+      release(&newt->lock);
+      release(&p->lock);
+      return -1;
+   }
+   add_to_threadlist(newt);
+   release(&p->thread_list_lock);
+
    //acquire(&p->lock);
-   p->nthread++;
+   //p->nthread++;
    release(&p->lock);
+   release(&newt->lock);
 
 bad:
 //freethread
@@ -564,6 +592,52 @@ int  do_thread_join(struct thread*thread){
  // release(&tt->lock);
 }
 
+
+static void join_others(){
+   
+  struct thread *t=mythread();
+  struct proc *p=myproc();
+  struct thread *tt;
+  struct list *l;
+
+   while(1){
+      acquire(&p->thread_list_lock);
+      l=p->thread_list.next;
+      if(l){
+        release(&p->thread_list_lock);
+        tt=list_entry(l,struct thread,thread_list);
+        acquire(&tt->lock);
+        do_thread_join(tt);
+        release(&tt->lock);
+      }else{
+         release(&p->thread_list_lock);
+          break;
+      }
+    }
+}
+
+
+static void  kill_others(){
+
+  struct thread *t=mythread();
+  struct proc *p=myproc();
+  struct list *l;
+  struct thread*tt;
+
+
+  acquire(&p->thread_list_lock);
+  l=p->thread_list.next;
+  while(l){
+    tt=list_entry(l,struct thread,thread_list);
+    if(tt!=t){
+      killthread(tt);
+    }
+  l=l->next;
+  }
+  release(&p->thread_list_lock);
+
+}
+
 void kill_join(){
 
   struct thread *t=mythread();
@@ -574,55 +648,37 @@ void kill_join(){
   // only allow one thread enter this
   //acquire(&p->kill_join_lock);
    // only one thread will enter this
-  if(acquiresleep_kill(&p->thread_list_lock)==-1){
-    //process has been killed,just return .
-      return ;
+  
+  // only one thread will enter this
+  acquire(&p->lock);
+  if(p->kill_join_call){
+    release(&p->lock);
+    return ;
+  }else{
+    p->kill_join_call=1;
   }
+  release(&p->lock);
+
+
+  //no new thread will enter the list.
 
   acquire(&t->lock);
   t->killwait=1;
   t->joined=0;
-  
   //have bugs here?
   wakeup(&t);
   release(&t->lock);
 
-  l=p->thread_list.next;
-  //struct thread *tt;
+  kill_others();
+  join_others();
 
-  // kill all other process
-//acquire(&p->thread_list);
+ acquire(&t->lock);
+  t->killwait=0;
+ release(&t->lock);
 
-  while(l){
-    tt=list_entry(l,struct thread,thread_list);
-    if(tt!=t){
-    //acquire()
-      killthread(tt);
-    }
-  l=l->next;
-  }
-
-l=p->thread_list.next;
-while(l){
-  tt=list_entry(l,struct thread,thread_list);
-  if(tt!=t){
-    //acquire()
-   // killthread(tt);
-   acquire(&tt->lock);
-   if(tt->joined==0)
-      do_thread_join(&tt);
-      //release
-  }
-  release(&tt->lock);
- l=l->next;
-}
-releasesleep(&p->thread_list_lock);
-
-
-
-acquire(&t->lock);
- t->killwait=0;
-release(&t->lock);
+  acquire(&p->lock);
+  p->kill_join_call=0;
+  release(&p->lock);
 }
 
 // two part atomticly
@@ -635,6 +691,10 @@ void thread_exit(uint64 retval){
   struct thread *tt;
   struct list *l;
 
+  acquire(&p->thread_list_lock);
+  rm_from_threadlist(t);
+  release(&p->thread_list_lock);
+
   acquire(&t->lock);
   t->xstate=0;
   t->state=ZOMBIE;
@@ -643,32 +703,11 @@ void thread_exit(uint64 retval){
       t->joined=0;
   }
   release(&t->lock);
+   
+  if(t==p->mainthread){ 
 
-
-  acquiresleep(&p->thread_list_lock);
-
-  rm_from_threadlist(t);
-  
-  if(t==p->mainthread){
-    //wait for other thread exit
-    l=p->thread_list.next;
-
-    // killthread(tt->tid);
-     while(l){
-       tt=list_entry(l,struct thread,thread_list);
-       if(tt!=t){
-        acquire(&tt->lock);
-        //before call this function,we can only have one lock.
-        do_thread_join(tt);
-        // have bug
-        release(&tt->lock);
-       }
-       l=l->next;
-     }
-
-    // no one join main_thread ,it should free itself
-    freethread(t,1);
-
+    join_others();
+    
     acquire(&p->lock);
     p->xstate=0;
     p->state=ZOMBIE;
@@ -676,9 +715,8 @@ void thread_exit(uint64 retval){
     wakeup(p);
     release(&p->lock);
   }
- 
-  releasesleep(&p->thread_list_lock);
-  
+
+  acquire(&t->lock);
   sched();
   panic("thread exit never reach here\n");
 }
@@ -699,7 +737,7 @@ int thread_join(int tid,void **retval){
   //acquire(&p->lock);
   //acquire(&p->thread_list);
   // implement a new sleeplock.
-   acquiresleep_kill(&p->thread_list_lock);
+   acquire(&p->thread_list_lock);
    l=p->thread_list.next;
     while(l){
       tt=list_entry(l,struct thread,thread_list);
@@ -711,30 +749,31 @@ int thread_join(int tid,void **retval){
        l=l->next;
      }
     
-  //release(&p->thread_list);
-  // the waiting thread is not exist
+  
   if(l==0){
-    releasesleep(&p->thread_list_lock);
+    release(&p->thread_list_lock);
     return -1;
   }else {
     // can not wait it self
     if(tt==t){
       release(&tt->lock);
-      releasesleep(&p->thread_list_lock);
+      release(&p->thread_list_lock);
       return -1;
     }
   }
-
+  release(&p->thread_list_lock);
 
   // we hold tt->lock and p->lock
   int ret=do_thread_join(tt);
   // free the waiting thread.
   //freethread(tt,1);
-
+ // rm_from_threadlist(tt);
   //release(&p->lock);
   release(&tt->lock);
   //release(&p->lock);
-   releasesleep(&p->thread_list_lock);
+
+  //free the memory
+  
   return ret;
 }
 
