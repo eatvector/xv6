@@ -367,11 +367,12 @@ void freethread(struct thread *t,int unmap){
 }
 
 
-//p->lock  p->xxxlist lock thread lock
+//return a locked thread.
+//state is USED.
 struct thread* allocthread(void){
     struct thread *t;
     struct proc *p=myproc();
-    acquire(&p->lock);
+    //acquire(&p->lock);
 
     for(t = thread; t< &thread[NTHREAD]; t++) {
       acquire(&t->lock);
@@ -381,7 +382,7 @@ struct thread* allocthread(void){
         release(&t->lock);
       }
     }
-    release(&p->lock);
+    //release(&p->lock);
     return 0;
 
 found:
@@ -397,43 +398,52 @@ found:
 
   //uint64  trapframeva;
   if((t->trapframeva=trapframeallocate())==0){
+      kfree(t->trapframe);
       goto bad;
   }
 
 // remap may happened.
   if(mappages(p->pagetable, t->trapframeva, PGSIZE,
               (uint64)(t->trapframe), PTE_R | PTE_W) < 0){
+      kfree(t->trapframe);
       goto bad;
   }
  
   char *usatck_page;
   char *guard_page;
 
-  if((usatck_page=kalloc)==0||(guard_page==kalloc())==0){
+  if((usatck_page=kalloc())==0){
+     kfree(t->trapframe);
+     goto bad;
+  }
+
+   if((guard_page=kalloc())==0){
+     kfree(t->trapframe);
+     kfree(usatck_page);
      goto bad;
   }
 
   if((t->ustack=userstackallocate())==0){
+     kfree(t->trapframe);
+     kfree(usatck_page);
+     kfree(guard_page);
     goto bad;
   }
 
   //mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   // allocate physiacal page for ustack and guard page.
-  if((guard_page==kalloc())==0){
-    goto bad;
-  }
 
   if(mappages(p->pagetable,t->ustack-2*PGSIZE,PGSIZE,guard_page,0)==-1){
-      kfree(guard_page);
-     goto bad;
-  }
-
-  if((usatck_page=kalloc)==0){
+     kfree(t->trapframe);
+     kfree(usatck_page);
+     kfree(guard_page);
      goto bad;
   }
 
   if(mappages(p->pagetable,t->ustack-PGSIZE,PGSHIFT,usatck_page,PTE_R|PTE_W|PTE_U)==-1){
+      kfree(t->trapframe);
       kfree(usatck_page);
+      kfree(guard_page);
       uvmunmap(p->pagetable,t->ustack-2*PGSIZE,1,1);
       goto bad;
   }
@@ -444,13 +454,13 @@ found:
 
   //where do we allocate the kstack?
   t->context.sp = t->kstack + PGSIZE;
-  release(&p->lock);
+  //release(&p->lock);
   return t;  //remember that t is locked.
 
   bad:
     freethread(t,0);
     release(&t->lock);
-    release(&p->lock);
+    //release(&p->lock);
     return 0;
 }
 
@@ -479,7 +489,7 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
 
    // do something
    //struct thread   oldt;
-   acquire(&p->lock);
+  // acquire(&p->lock);
    struct thread *newt=allocthread();
 
    if(newt==0){
@@ -489,8 +499,10 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
   newt->proc=p;
 
 
-   uint64 sp=userstackallocate();
-   newt->ustack=sp;
+  // uint64 sp=userstackallocate();
+   pagetable_t pagetable=p->pagetable;
+   uint64 sp= newt->ustack;
+
 
    if(sp==0){
      goto bad;
@@ -498,14 +510,10 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
    
    
   //push args to sp
-  pagetable_t pagetable=p->pagetable;
   sp-=16;
   if(copyout(pagetable, sp, (char*)threadargs, sizeof(uint64)) < 0)
     goto bad;
   
-
-
-
   //set trapframe for this thread. 
    newt->trapframe->a1=sp;
    newt->trapframe->sp=sp;
@@ -537,7 +545,7 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
 bad:
 //freethread
 release(&newt->lock);
-release(&p->lock);
+//release(&p->lock);
 return -1;
 
 }
