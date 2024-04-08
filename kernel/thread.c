@@ -351,10 +351,12 @@ void freethread(struct thread *t,int unmap){
  if(t->ustack){
      userstackfree(t->ustack);
      if(unmap){
+       // ustack page and guard page
         uvmunmap(p->pagetable,t->ustack-2*PGSIZE,2,1);
      }
      t->ustack=0;
  }
+  
 
   t->tid=0;
   t->killed=0;
@@ -408,7 +410,7 @@ found:
       kfree(t->trapframe);
       goto bad;
   }
- 
+/*
   char *usatck_page;
   char *guard_page;
 
@@ -447,7 +449,7 @@ found:
       uvmunmap(p->pagetable,t->ustack-2*PGSIZE,1,1);
       goto bad;
   }
-
+*/
 
   memset(&t->context, 0, sizeof(t->context));
   t->context.ra = (uint64)forkret;
@@ -501,24 +503,58 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
 
   // uint64 sp=userstackallocate();
    pagetable_t pagetable=p->pagetable;
+
+  
+  // allocate thread user thread
+  char *usatck_page;
+  char *guard_page;
+
+  if((usatck_page=kalloc())==0){
+     //kfree(t->trapframe);
+     goto bad;
+  }
+
+   if((guard_page=kalloc())==0){
+     kfree(usatck_page);
+     goto bad;
+  }
+
+  if((newt->ustack=userstackallocate())==0){
+     kfree(usatck_page);
+     kfree(guard_page);
+    goto bad;
+  }
+
+  //mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
+  // allocate physiacal page for ustack and guard page.
+
+  if(mappages(p->pagetable,newt->ustack-2*PGSIZE,PGSIZE,guard_page,0)==-1){
+     kfree(usatck_page);
+     kfree(guard_page);
+     goto bad;
+  }
+
+  if(mappages(p->pagetable,newt->ustack-PGSIZE,PGSHIFT,usatck_page,PTE_R|PTE_W|PTE_U)==-1){
+      kfree(usatck_page);
+      kfree(guard_page);
+      uvmunmap(p->pagetable,newt->ustack-2*PGSIZE,1,1);
+      goto bad;
+  }
+
    uint64 sp= newt->ustack;
 
-
-   if(sp==0){
-     goto bad;
-   }
-   
-   
   //push args to sp
-  sp-=16;
+ /* sp-=16;
   if(copyout(pagetable, sp, (char*)threadargs, sizeof(uint64)) < 0)
-    goto bad;
+    goto bad;*/
   
   //set trapframe for this thread. 
-   newt->trapframe->a1=sp;
+   newt->trapframe->a0=(uint64)args;
    newt->trapframe->sp=sp;
    newt->trapframe->epc=(uint64)start;
-   release(newt);
+   release(&newt->lock);
+    
+   // state is USED
 
    newt->state=RUNNABLE;
 
@@ -526,24 +562,21 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args){
    // lock fuck.
    acquire(&p->thread_list_lock);
    if(kill_join_call(p)){
-      acquire(&newt->lock);
-      freethread(newt,1);
-      release(&newt->lock);
       release(&p->thread_list_lock);
-      release(&newt->lock);
-      release(&p->lock);
-      return -1;
+      acquire(&newt->lock);
+      goto bad;
    }
    add_to_threadlist(newt);
    release(&p->thread_list_lock);
-
-   //acquire(&p->lock);
-   //p->nthread++;
-   release(&p->lock);
+ 
+   acquire(&newt->lock);
+   newt->state=RUNNABLE;
    release(&newt->lock);
+   return 0;
 
 bad:
 //freethread
+freethread(newt,1);
 release(&newt->lock);
 //release(&p->lock);
 return -1;
@@ -568,6 +601,8 @@ int threadkilled(struct thread *thread){
 
 //must hold thread->lock.
 //thread is the thread we join on.
+
+// find a bug here.
 int  do_thread_join(struct thread*thread){
   
    if(!holding(&thread->lock)){
@@ -575,7 +610,7 @@ int  do_thread_join(struct thread*thread){
    }
 
   // the thread tt has been joined.
-   if(&thread->joined==1){
+   if(thread->joined==1){
      return -1;
    }
 
@@ -614,9 +649,11 @@ static void join_others(){
       if(l){
         release(&p->thread_list_lock);
         tt=list_entry(l,struct thread,thread_list);
+        if(tt!=t){
         acquire(&tt->lock);
         do_thread_join(tt);
         release(&tt->lock);
+        }
       }else{
          release(&p->thread_list_lock);
           break;
@@ -725,10 +762,16 @@ void thread_exit(uint64 retval){
   }
 
   acquire(&t->lock);
+  // main thread should free it self.
+  if(t==p->mainthread){
+     freethread(t,1);
+  }
   sched();
   panic("thread exit never reach here\n");
 }
 
+
+//two thread join on the same thread.
 int thread_join(int tid,void **retval){
   // acquire the spinlock
   //check id in the same process
@@ -750,7 +793,8 @@ int thread_join(int tid,void **retval){
     while(l){
       tt=list_entry(l,struct thread,thread_list);
       acquire(&tt->lock);
-       if(tt->tid==tid){
+      // find it and not been joined
+       if(tt->tid==tid&&tt->joined==0){
          break;
        }
        release(&tt->lock);
@@ -840,3 +884,4 @@ int  thread_cond_signal(struct pthread_cond_t *cond){
 
 
 
+//tlist lock    ->t lock ->p lock

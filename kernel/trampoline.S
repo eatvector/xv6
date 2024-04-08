@@ -109,7 +109,8 @@ userret:
         csrw satp, a0
         sfence.vma zero, zero
 
-        li a0, TRAPFRAME
+        #li a0, TRAPFRAME
+        addi a0,a1,0
 
         # restore all but a0 from TRAPFRAME
         ld ra, 40(a0)
