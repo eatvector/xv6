@@ -122,6 +122,11 @@ w_sie(uint64 x)
   asm volatile("csrw sie, %0" : : "r" (x));
 }
 
+static inline void
+w_sscratch(uint64 x)
+{
+  asm volatile("csrw sscratch, %0" : : "r" (x));
+}
 
 // Machine-mode Interrupt Enable
 #define MIE_MEIE (1L << 11) // external

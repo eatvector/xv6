@@ -238,7 +238,7 @@ void userstackfree(uint64 ustack);
 struct thread* allocthread(void);
 struct thread *mythread();
 void thread_exit(uint64 retval);
-void kill_wait();
+void kill_join();
 int thread_create(int *tid,void *attr,void *(start)(void*),void *args);
 int thread_join(int tid,void **retval);
 int threadkilled(struct thread *thread);

@@ -683,6 +683,8 @@ static void  kill_others(){
 
 }
 
+
+// this function is used in exec and exit.
 void kill_join(){
 
   struct thread *t=mythread();
@@ -690,11 +692,7 @@ void kill_join(){
   struct thread *tt;
   struct list *l;
 
-  // only allow one thread enter this
-  //acquire(&p->kill_join_lock);
-   // only one thread will enter this
-  
-  // only one thread will enter this
+  // only one thread will enter this code.
   acquire(&p->lock);
   if(p->kill_join_call){
     release(&p->lock);
@@ -747,6 +745,30 @@ void thread_exit(uint64 retval){
       wakeup(t);
       t->joined=0;
   }
+  if(t==p->mainthread){
+    if(t->killed){
+      // other thread call exit 
+      goto _sched;
+    }else{
+      // avoid dead lock
+       release(&t->lock);
+       join_others();
+       
+       acquire(&p->lock);
+       p->xstate=0;
+       p->state=ZOMBIE;
+       //should wake up wait?
+       wakeup(p);
+       release(&p->lock);
+       acquire(&t->lock);
+       freethread(t,1);
+    }
+  }else{
+
+  }
+
+
+    
   release(&t->lock);
    
   if(t==p->mainthread){ 
@@ -766,6 +788,8 @@ void thread_exit(uint64 retval){
   if(t==p->mainthread){
      freethread(t,1);
   }
+
+  _sched:
   sched();
   panic("thread exit never reach here\n");
 }

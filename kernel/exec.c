@@ -35,9 +35,8 @@ exec(char *path, char **argv)
   struct proc *p = myproc();
   struct thread *t=   mythread();
 
-
-
-  //  kill all  thread in current process.
+  //  kill all  other thread in current process.
+  // ensure only one thread enter this function.
   kill_wait();
  
   //initmutextlock(&p->lock,"procmutextlock");
@@ -53,9 +52,7 @@ exec(char *path, char **argv)
   // clear all the vma;
   munmapall();
 
-
-
-  //did mmap need to modify like this.
+  //clear the exec vma file.
   for(int i=NPMMAPVMA+NPHEAPVMA;i<NPVMA;i++){
     if(p->vma[i]){
       if(p->vma[i]->ip){
@@ -166,23 +163,22 @@ exec(char *path, char **argv)
     sz = sz1;
     uvmclear(pagetable, sz-2*PGSIZE);
     sp = sz;
-    //if(i==0){
-      p->ustack_start=sp;
-      stackbase = sp - PGSIZE;
-      p->usatckbitmap=1;
-   // }
-  //}
-
+ 
+    p->ustack_start=sp;
+    stackbase = sp - PGSIZE;
+    p->usatckbitmap=1;
+  
   // for heap vma.
    p->vma[NPMMAPVMA]=vmaalloc();
    if(p->vma[NPMMAPVMA]==0){
      goto bad;
    }
    // is here have bugs?
-   p->vma[NPMMAPVMA]->addr=p->vma[NPMMAPVMA]->end= sp+(NPTHREAD-1)*2*PGSIZE;
-
+   // remain space for other  thread in this proc.
+   sz=p->vma[NPMMAPVMA]->addr=p->vma[NPMMAPVMA]->end= sp+(NPTHREAD-1)*2*PGSIZE;
+   
   
-  sp= p->ustack_start;
+  //sp= p->ustack_start;
 
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
@@ -220,19 +216,8 @@ exec(char *path, char **argv)
    // t still in thread list
   struct thread *mainthread=t;
 
-  acquire(&mainthread->lock);
+  
   //mainthread->proc=p;
-  p->mainthread=mainthread;
-
-  mainthread->ustack=p->ustack_start;
-
-  mainthread->trapframe->a1 = sp;
-  mainthread->trapframe->epc = elf.entry;  // initial program counter = main
-  mainthread->trapframe->sp = sp; // initial stack pointer
-  release(&mainthread->lock);
-
-
-
   // i do not know here ,may allocate a new tramframe?
   //mainthread->ustack=p->ustack_start;
   //mainthread->trapframeva=TRAPFRAME(0);
@@ -244,6 +229,19 @@ exec(char *path, char **argv)
 
   proc_freepagetable(oldpagetable, oldsz);
 
+
+   // do we nned hold lock?
+   // t still in thread list
+  struct thread *mainthread=t;
+
+  p->mainthread=mainthread;
+
+  mainthread->ustack=p->ustack_start;
+
+  mainthread->trapframe->a1 = sp;
+  mainthread->trapframe->epc = elf.entry;  // initial program counter = main
+  mainthread->trapframe->sp = sp; // initial stack pointer
+  
 
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 

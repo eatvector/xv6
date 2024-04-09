@@ -319,6 +319,8 @@ growproc(int n)
 
 // Create a new process, copying the parent.
 // Sets up child kernel stack to return as if from fork() system call.
+// other thread may stll running.
+
 int
 fork(void)
 {
@@ -496,6 +498,8 @@ exit(int status)
 
 
   //how can we sat the p->xcode.
+  // only one thread will enter this.
+  // this will kill main
   kill_wait();
 
   vmafree(p->vma[NPMMAPVMA]);
