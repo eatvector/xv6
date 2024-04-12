@@ -146,6 +146,11 @@ struct proc {
   //only one thread can call this;
   int kill_join_call;
 
+  struct list exit_thread_list;
+  // the thread has exit but resources has not be freed;
+  struct  spinlock exit_thread_list_lock;
+
+
 
   uint8 trapframebitmap;
 

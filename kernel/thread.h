@@ -62,10 +62,10 @@ struct thread{
   
   
   struct list thread_list;
-
+  struct list exit_thread_list;
 
   //the thread this thread wait_on
-  struct list join_list;
+  //struct list join_list;
 
 };
 
