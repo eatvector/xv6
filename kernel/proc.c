@@ -321,6 +321,7 @@ growproc(int n)
 // Sets up child kernel stack to return as if from fork() system call.
 // other thread may stll running.
 
+//need many modify here.
 int
 fork(void)
 {
@@ -491,8 +492,8 @@ void
 exit(int status)
 {
   struct proc *p = myproc();
-  
-  
+  struct thread *t=mythread();
+
   if(p == initproc)
     panic("init exiting");
 
@@ -501,6 +502,12 @@ exit(int status)
   // only one thread will enter this.
   // this will kill main
   kill_wait();
+
+  acquire(&t->lock);
+  freethread(t,1);
+  release(&t->lock);
+  
+  
 
   vmafree(p->vma[NPMMAPVMA]);
 
@@ -542,9 +549,6 @@ exit(int status)
   // Parent might be sleeping in wait().
   wakeup(p->parent);
 
-  //end the last thread
-  thread_exit(0);
-  
   acquire(&p->lock);
   assert(p->state ==ZOMBIE);
   p->xstate = status;

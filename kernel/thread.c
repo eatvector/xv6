@@ -647,10 +647,12 @@ int threadkilled(struct thread *thread){
 
 // find a bug here.
 int  do_thread_join(struct thread*thread){
-  
-   if(!holding(&thread->lock)){
-       panic("Should hold thread lock");
-   }
+   
+  struct proc *p=myproc();
+
+  if(!holding(&thread->lock)){
+      panic("Should hold thread lock");
+  }
 
   // the thread tt has been joined.
    if(thread->joined==1){
@@ -669,7 +671,11 @@ int  do_thread_join(struct thread*thread){
   //if thread state got to ZOMNIE.
   
   if(!thread->killwait){
-    freethread(thread,1);
+    // rm from the lsit and free it
+      acquire(&p->exit_thread_list_lock);
+      rm_from_exit_thread_list(thread);
+      release(&p->exit_thread_list_lock);
+      freethread(thread,1);
   }
 
   //  free
@@ -759,6 +765,7 @@ void kill_join(){
 
   kill_others();
   join_others();
+  free_threads();
 
  acquire(&t->lock);
   t->killwait=0;
@@ -784,7 +791,7 @@ void thread_exit(uint64 retval){
 
   //if(t==p->mainthread)
 
-  // rm from 
+  // rm from one list and add to another list.
   acquire(&p->thread_list_lock);
   rm_from_threadlist(t);
   acquire(&p->exit_thread_list_lock);
@@ -798,13 +805,8 @@ void thread_exit(uint64 retval){
   t->state=ZOMBIE;
   if(t->joined){
     // join thread will free the resources.
-    acquire(&p->exit_thread_list_lock);
-    rm_from_exit_thread_list(t);
-    release(&p->exit_thread_list_lock);
-
     wakeup(t);
     t->joined=0;
-
   }
   release(&t->lock);
 
@@ -824,7 +826,7 @@ void thread_exit(uint64 retval){
 
     if(flag){
      join_others();
-     // free thread resources.
+     // free thread resources that not free.
      free_threads();
   
       acquire(&p->lock);

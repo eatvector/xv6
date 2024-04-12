@@ -242,6 +242,7 @@ void kill_join();
 int thread_create(int *tid,void *attr,void *(start)(void*),void *args);
 int thread_join(int tid,void **retval);
 int threadkilled(struct thread *thread);
+void freethread(struct thread *t,int unmap);
 
 
 
