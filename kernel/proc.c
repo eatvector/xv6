@@ -455,13 +455,10 @@ fork(void)
   np->parent = p;
   release(&wait_lock);
 
-  /*acquire(&np->lock);
-  np->state = RUNNABLE;
-  release(&np->lock);*/
-// allocate a new thread for this 
+ 
 
-
-//first acquire thread lock,the acquire the proc lock
+// allocate a new main thread for the 
+// only one thread use the newp,do not need hold the lock.
   if((nt = allocthread()) == 0){
     return -1;
   }
@@ -471,18 +468,10 @@ fork(void)
   nt->ustack=t->ustack;
   nt->trapframeva=t->trapframeva;
   
-  //the last thing to do,set it to runable.
-  //release(&nt->lock);
-
-  //to avoid deadlock.
- // acquire(&np->lock);
-   //np->
   np->mainthread=nt;
-    // only one thread,do not have to acquire the thread_list lock.
-  
+  np->thread_list.next=nt;
+  nt->thread_list.prev= &np->thread_list;
   nt->state=RUNNABLE;
-  //release(&nt->lock);
-  //release(&np->lock);
   release(&nt->lock);
   return pid;
 }
