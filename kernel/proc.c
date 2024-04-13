@@ -322,6 +322,7 @@ growproc(int n)
 // other thread may stll running.
 
 //need many modify here.
+// too complex.
 int
 fork(void)
 {
@@ -331,13 +332,15 @@ fork(void)
 
   struct thread*t=mythread();
   struct proc *p = myproc();
-   
-   
 
+  // in  vma file we have to hold the 
+  acquiresleep(&p->vmalook);
+   
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
   }
+
 
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
@@ -394,20 +397,39 @@ fork(void)
        vmacopy(p->vma[i],np->vma[i]);
     }
   }
-// data ,code ,heap
-  np->sz = p->sz;
   
+// data ,code ,heap
+// sbrk may chege the size.
+  acquire(&p->lock);
+  np->sz = p->sz;
+  release(&p->lock);
+ // releasesleep(&p->vmalook);
+  
+  //ustack and 
   np->ustack_start=p->ustack_start;
-   
-
   // when to free the ustack.
   int ustacki=USTACKI(p->ustack_start,t->ustack);
   np->usatckbitmap=(1<<ustacki);
+  // unmap other thread usatck
+  for(int i=0;i<NPTHREAD;i++){
+    if(i!=ustacki&&p->usatckbitmap&(1<<i)){
+          uvmunmap(np->pagetable,USTACK(p->ustack_start,i),1,1);
+    }
+  }
+
   // do we need free the trapframe of other thread?
   int trapframei=TRAPFRAMEI(t->trapframeva);
   np->trapframebitmap=(1<<trapframei);
+  //unmap other thread trapframe.
+  for(int i=0;i<NPTHREAD;i++){
+    if(i!=trapframei&&p->trapframebitmap&(1<<i)){
+          uvmunmap(np->pagetable,TRAPFRAME(i),1,1);
+    }
+  }
+
+  // how can we put this release op.
+  releasesleep(&p->vmalook);
   
-  np->nthread=1;
 
   // copy saved user registers.
  // *(np->trapframe) = *(p->trapframe);
@@ -416,10 +438,12 @@ fork(void)
 //  np->trapframe->a0 = 0;
 
   // increment reference counts on open file descriptors.
+  acquire(&p->flock);
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
+  release(&p->flock);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
@@ -445,27 +469,20 @@ fork(void)
   nt->trapframe->a0=0;
   nt->proc=np;
   nt->ustack=t->ustack;
+  nt->trapframeva=t->trapframeva;
+  
   //the last thing to do,set it to runable.
   //release(&nt->lock);
 
   //to avoid deadlock.
-  acquire(&np->lock);
+ // acquire(&np->lock);
    //np->
-
-
-   //need to modify here 
-   // also fork will use yhe p->mainthread.
-   if(p->mainthread==t){
-     np->mainthread=nt;
-   }
+  np->mainthread=nt;
     // only one thread,do not have to acquire the thread_list lock.
-  np->thread_list.next=nt;
-  //release(&np->lock);
-  //acquire(&nt->lock);
-  nt->thread_list.prev=&np->thread_list;
+  
   nt->state=RUNNABLE;
   //release(&nt->lock);
-  release(&np->lock);
+  //release(&np->lock);
   release(&nt->lock);
   return pid;
 }

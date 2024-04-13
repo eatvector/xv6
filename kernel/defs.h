@@ -243,7 +243,7 @@ int thread_create(int *tid,void *attr,void *(start)(void*),void *args);
 int thread_join(int tid,void **retval);
 int threadkilled(struct thread *thread);
 void freethread(struct thread *t,int unmap);
-
+void add_to_threadlist(struct thread *t);
 
 
 
