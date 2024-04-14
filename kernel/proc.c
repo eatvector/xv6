@@ -51,6 +51,7 @@ proc_mapstacks(pagetable_t kpgtbl)
 
 
 // initialize the proc table.
+// initial the process lock
 void
 procinit(void)
 {
@@ -152,12 +153,6 @@ found:
     return 0;
   }
 
-  // Set up new context to start executing at forkret,
-  // which returns to user space.
- /* memset(&p->context, 0, sizeof(p->context));
-  p->context.ra = (uint64)forkret;
-  p->context.sp = p->kstack + PGSIZE;*/
-
   return p;
 }
 
@@ -258,23 +253,31 @@ uchar initcode[] = {
   0x00, 0x00, 0x00, 0x00
 };
 
-// Set up first user process.
+// set up first user process.
+// also allocate the first thread.
 void
 userinit(void)
 {
   struct proc *p;
-
+  //acquire t lock firt,and then acquire process lock.
+  //struct thread*mainthread=allocthread();
   p = allocproc();
+  // only one thread will use this proc,so we need not to hold the lock.
+ release(&p->lock);
+
   initproc = p;
   
+  struct thread*mainthread=allocthread();
   // allocate one user page and copy initcode's instructions
   // and data into it.
   uvmfirst(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
-
-  struct thread*mainthread=allocthread();
   p->mainthread=mainthread;
   mainthread->proc=p;
+
+  //add to the thread list.
+  p->thread_list.next=mainthread;
+  mainthread->thread_list.prev=&p->thread_list.next;
 
   // prepare for the very first "return" from kernel to user.
   mainthread->trapframe->epc = 0;      // user program counter
@@ -286,15 +289,7 @@ userinit(void)
   p->cwd = namei("/");
 
   mainthread->state = RUNNABLE;
-
-  /*
-   //for the initcode,we do hack
-  p->execvma[0]=vmaalloc();
-  p->execvma[0]->addr=0;
-  p->execvma[0]->memsz=PGSIZE;
-  */
-
-  release(&p->lock);
+  release(&mainthread->lock);
 }
 
 // Grow or shrink user memory by n bytes.

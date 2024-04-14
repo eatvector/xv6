@@ -50,20 +50,21 @@ fetchstr(uint64 addr, char *buf, int max)
 static uint64
 argraw(int n)
 {
-  struct proc *p = myproc();
+  //struct proc *p = myproc();
+  struct thread*t=mythread();
   switch (n) {
   case 0:
-    return p->trapframe->a0;
+    return t->trapframe->a0;
   case 1:
-    return p->trapframe->a1;
+    return t->trapframe->a1;
   case 2:
-    return p->trapframe->a2;
+    return t->trapframe->a2;
   case 3:
-    return p->trapframe->a3;
+    return t->trapframe->a3;
   case 4:
-    return p->trapframe->a4;
+    return t->trapframe->a4;
   case 5:
-    return p->trapframe->a5;
+    return t->trapframe->a5;
   }
   panic("argraw");
   return -1;
@@ -132,14 +133,6 @@ extern uint64  sys_thread_cond_wait(void);
 extern uint64  sys_thread_cond_signal(void);
 
 
-
-
-
-
-
-
-
-
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
 static uint64 (*syscalls[])(void) = {
@@ -183,17 +176,18 @@ syscall(void)
 {
   int num;
   struct proc *p = myproc();
+  struct thread *t=mythread();
 
-  num = p->trapframe->a7;
+  num = t->trapframe->a7;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
-    p->trapframe->a0 = syscalls[num]();
+    t->trapframe->a0 = syscalls[num]();
    // printf("do sysy call flush\n");
    //flush_all_tlb();
   } else {
-    printf("%d %s: unknown sys call %d\n",
-            p->pid, p->name, num);
-    p->trapframe->a0 = -1;
+    printf("%d %s %d: unknown sys call %d\n",
+            p->pid, p->name,t->tid, num);
+    t->trapframe->a0 = -1;
   }
 }

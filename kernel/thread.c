@@ -434,46 +434,7 @@ found:
       kfree(t->trapframe);
       goto bad;
   }
-/*
-  char *usatck_page;
-  char *guard_page;
 
-  if((usatck_page=kalloc())==0){
-     kfree(t->trapframe);
-     goto bad;
-  }
-
-   if((guard_page=kalloc())==0){
-     kfree(t->trapframe);
-     kfree(usatck_page);
-     goto bad;
-  }
-
-  if((t->ustack=userstackallocate())==0){
-     kfree(t->trapframe);
-     kfree(usatck_page);
-     kfree(guard_page);
-    goto bad;
-  }
-
-  //mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
-  // allocate physiacal page for ustack and guard page.
-
-  if(mappages(p->pagetable,t->ustack-2*PGSIZE,PGSIZE,guard_page,0)==-1){
-     kfree(t->trapframe);
-     kfree(usatck_page);
-     kfree(guard_page);
-     goto bad;
-  }
-
-  if(mappages(p->pagetable,t->ustack-PGSIZE,PGSHIFT,usatck_page,PTE_R|PTE_W|PTE_U)==-1){
-      kfree(t->trapframe);
-      kfree(usatck_page);
-      kfree(guard_page);
-      uvmunmap(p->pagetable,t->ustack-2*PGSIZE,1,1);
-      goto bad;
-  }
-*/
 
   memset(&t->context, 0, sizeof(t->context));
   t->context.ra = (uint64)forkret;

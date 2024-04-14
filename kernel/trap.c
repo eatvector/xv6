@@ -99,11 +99,19 @@ usertrap(void)
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     printf("            name=%s\n",p->name);
+    // the whole process should be killled.
     setkilled(p);
   }
 
-  if(killed(p))
+  //the whole process is killed,call exit();
+  if(killed(p)){
     exit(-1);
+  }
+
+  //other thread may kill this thread.
+  if(threadkilled(t)){
+    thread_exit(0);
+  }
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
