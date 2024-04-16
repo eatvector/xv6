@@ -103,7 +103,10 @@ int pagefaulthandler(uint64 va,uint64 n,int cow){
     uint64 end=va+n;
     va=PGROUNDDOWN(va);
     struct proc *p=myproc();
-    
+
+    //vm
+    enter_vm();
+
     int ret=0;
     begin_op();
 
@@ -137,7 +140,23 @@ for(;va<end;va+=PGSIZE){
       break;
     }
 }
- end_op();
-    return ret;
+  end_op();
+  // flush the tlb.
+  leave_vm(1);
+  return ret;
 }
 
+// only one thread will change the vm space,other thread will sleep.
+void enter_vm(){
+   struct proc *p=myproc();
+   acquiresleep(&p->vmalook);
+}
+
+void leave_vm(int doflush){
+    struct proc *p=myproc();
+   releasesleep(&p->vmalook);
+   if(doflush){
+    flush_all_tlb();
+   }
+   // after do this ,we can ensure that ,all other core has flush it's tlb;
+}

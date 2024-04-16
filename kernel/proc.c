@@ -263,7 +263,7 @@ userinit(void)
   //struct thread*mainthread=allocthread();
   p = allocproc();
   // only one thread will use this proc,so we need not to hold the lock.
- release(&p->lock);
+  release(&p->lock);
 
   initproc = p;
   
@@ -433,12 +433,15 @@ fork(void)
 //  np->trapframe->a0 = 0;
 
   // increment reference counts on open file descriptors.
-  acquire(&p->flock);
+  acquire(&p->oflock);
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
+  //np->cwd = idup(p->cwd);
+  release(&p->oflock);
+
+  //protect by p->lock?
   np->cwd = idup(p->cwd);
-  release(&p->flock);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 

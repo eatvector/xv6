@@ -219,6 +219,8 @@ struct vma*vmaalloc(void);
 void vmafree(struct vma*vma);
 void vmacopy(struct vma*src,struct vma *dst);
 int pagefaulthandler(uint64 va,uint64 n,int cow);
+void enter_vm();
+void leave_vm(int doflush);
 
 //semaphore.c
 void initsemaphore(struct semaphore *s,int cnt);
@@ -229,8 +231,6 @@ void sema_v(struct semaphore *s);
 void initmutextlock(struct mutexlock *mutexlock,char *name);
 void mutexlock(struct mutexlock *mutexlock);
 void mutexunlock(struct mutexlock *mutexlock);
-
-
 
 //thread.c
 uint64 userstackallocate();

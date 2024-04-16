@@ -19,6 +19,10 @@ struct pipe {
   int writeopen;  // write fd is still open
 };
 
+
+
+//allocate file struct for f0,f1;
+//allocate physical memory for pipe.
 int
 pipealloc(struct file **f0, struct file **f1)
 {

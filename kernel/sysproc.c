@@ -36,6 +36,9 @@ sys_wait(void)
 }
 
 //lazy sbrk
+// hold vmalockfirst.
+
+
 uint64
 sys_sbrk(void)
 {
@@ -44,20 +47,29 @@ sys_sbrk(void)
 
   argint(0, &n);
   struct proc *p=myproc();
-
+  
+  enter_vm();
 
   addr = p->sz;
   uint64 newsz=p->sz+n;
 
+
   if(n>=0){
-      if(newsz>HEAPMAX)
+      if(newsz>HEAPMAX){
+        leave_vm(0);
         return -1;
+      }
        p->sz=p->vma[NPMMAPVMA]->end=newsz;
+       leave_vm(0);
   } else {
-      if(newsz>=p->vma[NPMMAPVMA]->addr)
+      if(newsz>=p->vma[NPMMAPVMA]->addr){
         p->sz=p->vma[NPMMAPVMA]->end=uvmdealloc(p->pagetable, p->sz, newsz);
-      else
+        leave_vm(1);
+      }
+      else{
+        leave_vm(0);
         return -1;
+      }
   }
   return addr;
 }

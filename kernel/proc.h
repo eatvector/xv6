@@ -130,15 +130,16 @@ struct proc {
   //struct trapframe *trapframe; // data page for trampoline.S
   //struct context context;      // swtch() here to run process,kernel thread context.
 
-  struct spinlock flock;    //protect the file resources.
+  struct spinlock oflock;    //protect the file resources.
   struct file *ofile[NOFILE];  // Open files
+
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 
   
   uint64 ustack_start;//
   uint8 usatckbitmap; //is used?
-  int nthread;
+  
  // struct thread *mainthread; 
   struct sleeplock threadlock;
   struct thread *mainthread; 

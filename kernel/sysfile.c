@@ -24,10 +24,16 @@ argfd(int n, int *pfd, struct file **pf)
 {
   int fd;
   struct file *f;
+  struct proc*p=myproc();
+
 
   argint(n, &fd);
-  if(fd < 0 || fd >= NOFILE || (f=myproc()->ofile[fd]) == 0)
+
+  acquire(&p->oflock);
+  if(fd < 0 || fd >= NOFILE || (f=p->ofile[fd]) == 0){
+    release(&p->oflock);
     return -1;
+  }
   if(pfd)
     *pfd = fd;
   if(pf)
@@ -43,12 +49,15 @@ fdalloc(struct file *f)
   int fd;
   struct proc *p = myproc();
 
+  acquire(&p->oflock);
   for(fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd] == 0){
       p->ofile[fd] = f;
+      release(&p->oflock);
       return fd;
     }
   }
+  release(&p->oflock);
   return -1;
 }
 
@@ -110,10 +119,16 @@ sys_close(void)
 {
   int fd;
   struct file *f;
+  struct proc *p=myproc();
+
 
   if(argfd(0, &fd, &f) < 0)
     return -1;
-  myproc()->ofile[fd] = 0;
+
+   acquire(&p->oflock);
+   p->ofile[fd] = 0;
+   release(&p->oflock);
+
   fileclose(f);
   return 0;
 }
@@ -484,7 +499,7 @@ sys_exec(void)
   for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
     kfree(argv[i]);
 
- //flush_all_tlb();
+ // ();
 
   return ret;
 
@@ -507,8 +522,11 @@ sys_pipe(void)
     return -1;
   fd0 = -1;
   if((fd0 = fdalloc(rf)) < 0 || (fd1 = fdalloc(wf)) < 0){
-    if(fd0 >= 0)
+    if(fd0 >= 0){
+      acquire(&p->oflock);
       p->ofile[fd0] = 0;
+      release(&p->lock);
+    }
     fileclose(rf);
     fileclose(wf);
     return -1;
@@ -520,8 +538,10 @@ sys_pipe(void)
 
   if(copyout(p->pagetable, fdarray, (char*)&fd0, sizeof(fd0)) < 0 ||
      copyout(p->pagetable, fdarray+sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0){
+    acquire(&p->oflock);
     p->ofile[fd0] = 0;
     p->ofile[fd1] = 0;
+    release(&p->lock);
     fileclose(rf);
     fileclose(wf);
     return -1;
@@ -558,10 +578,12 @@ uint64 sys_mmap(void){
      argint(5,&offset);
 
     struct proc*p=myproc();
-    
 
-    
+    // only one thread will enter this 
+     //enter_vm();
+
     if(length==0||length>MMAPMAXLENTH||length%PGSIZE!=0){
+     // leave_vm(0);
       return -1;
     }
 
@@ -571,9 +593,15 @@ uint64 sys_mmap(void){
 
   
    // may have bugs here
+    acquire(&p->oflock);
     if((flags==MAP_SHARED)&&p->ofile[fd]->writable==0&&((prot&PROT_WRITE)!=0)){
+      release(&p->lock);
         return -1;
     }
+    release(&p->oflock);
+
+    
+    enter_vm();
 
     uint64 start_addr;
     //find a ohysical memory for this
@@ -588,6 +616,7 @@ uint64 sys_mmap(void){
 
     // no free  va
     if(i==16){
+       leave_vm(0);
        return -1;
     }
 
@@ -596,13 +625,17 @@ uint64 sys_mmap(void){
 
     struct  vma* vma=vmaalloc();
     if(vma==0){
+      leave_vm(0);
       return -1;
     }
 
     vma->addr=start_addr;
     vma->lenth=length;
     // fd check
+    acquire(&p->oflock);
     vma->f=p->ofile[fd];
+    release(&p->lock);
+
     filedup(vma->f);
 
     vma->prot=prot;
@@ -616,6 +649,7 @@ uint64 sys_mmap(void){
         }
     }
 
+   leave_vm(0);
    return vma->addr ;
 }
 
@@ -628,9 +662,11 @@ uint64 sys_mmap(void){
   argint(1,&length);
 
   int ret;
+  enter_vm();
   begin_op();
   ret=munmap(addr,length);
   end_op();
+  leave_vm(1);
 
    //args check is put in munmapfile
   return ret;
