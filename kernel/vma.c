@@ -116,15 +116,34 @@ for(;va<end;va+=PGSIZE){
      ret= -1;
   }else{
     pte_t *pte=walk(p->pagetable,va,0);
+    // user code can not access this page.
     if(pte&&*pte&PTE_V){
-         if(*pte&PTE_COW&&cow){
+      //pte is valid,but usercode can not access this page.
+          if((*pte&PTE_U)==0){
+             ret=-1;
+          }else if((*pte&PTE_COW)&&cow){
             ret=uvmcow(p->pagetable,va);
          }else{
            // do nothing handler
-           ret=1;
+           // may stll have some bug here.
+           // 
+           //juge load and store?
+           uint scause=r_scause();
+           uint  pagelost=(scause==12||scause==13);
+           //scause=
+           if(pagelost){
+              //the page has been load by other thread
+              ret=0;
+           }else{
+             // write to read only page.
+             ret=-1;
+           }
+
+
          }
     }else{
-        //begin_op();
+        
+        //lost some pages.
         ret=mmap(va);
         if(ret==1){
           ret=lazyallocate(va);
@@ -154,9 +173,12 @@ void enter_vm(){
 
 void leave_vm(int doflush){
     struct proc *p=myproc();
-   releasesleep(&p->vmalook);
-   if(doflush){
-    flush_all_tlb();
+    if(doflush){
+     flush_all_tlb();
    }
+   releasesleep(&p->vmalook);
+   /*if(doflush){
+    flush_all_tlb();
+   }*/
    // after do this ,we can ensure that ,all other core has flush it's tlb;
 }
