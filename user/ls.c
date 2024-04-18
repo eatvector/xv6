@@ -2,6 +2,13 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "kernel/fs.h"
+#define PGSIZE 4096
+#define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
+#include "kernel/memlayout.h"
+
+
+
+
 
 char*
 fmtname(char *path)
@@ -76,6 +83,16 @@ main(int argc, char *argv[])
 {
   int i;
 
+  /*uint64 brk=(uint64)sbrk(0);
+  if(brk>0x10000){
+    exit(1);
+  }
+
+  char *t=0;
+  t=(char * )0x10000;
+  *t=1;*/
+/* char *addr=(char *)TRAPFRAME;
+  *addr=0x1;*/
   if(argc < 2){
     ls(".");
     exit(0);
